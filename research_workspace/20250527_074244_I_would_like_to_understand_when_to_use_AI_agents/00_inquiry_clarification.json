@@ -1,0 +1,58 @@
+{
+  "original_query": "I would like to understand the best practices when integrating agents with a ticketing service for an IT MSP Team.",
+  "query_analysis": {
+    "main_topic": "Best practices for integrating agents with ticketing services in IT Managed Service Provider (MSP) environments",
+    "implicit_needs": [
+      "Strategies for improving workflow automation",
+      "Integration of human or AI agents with ticketing systems",
+      "Scalability and efficiency for MSP operations"
+    ],
+    "ambiguities": [
+      "Are 'agents' referring to human technicians, AI tools, or both?",
+      "Which specific ticketing services (e.g., ServiceNow, Zendesk) are relevant?",
+      "What level of technical detail is required (e.g., API configurations, process workflows)?"
+    ]
+  },
+  "clarifying_questions": [
+    {
+      "question": "Are you focusing on human agents, AI/automation agents, or both?",
+      "purpose": "To determine the scope of 'agents' and tailor recommendations accordingly",
+      "options": [
+        "Human agents",
+        "AI/automation agents",
+        "Both"
+      ]
+    },
+    {
+      "question": "Which ticketing service(s) are you using or considering? (e.g., ServiceNow, Zendesk, Freshdesk)",
+      "purpose": "To provide context-specific best practices and examples",
+      "options": [
+        "ServiceNow",
+        "Zendesk",
+        "Freshdesk",
+        "Other (please specify)"
+      ]
+    },
+    {
+      "question": "Would you prefer technical implementation details, case studies, or high-level strategic guidance?",
+      "purpose": "To align the depth of information with your needs",
+      "options": [
+        "Technical configurations",
+        "Case studies",
+        "Strategic frameworks",
+        "Statistical benchmarks"
+      ]
+    },
+    {
+      "question": "Do you have any constraints (e.g., budget, existing tools, compliance requirements) to consider?",
+      "purpose": "To identify potential limitations or priorities in the integration process",
+      "options": [
+        "Budget restrictions",
+        "Existing toolstack",
+        "Compliance needs",
+        "No constraints"
+      ]
+    }
+  ],
+  "suggested_refinement": "Specify the type of agents (human/AI), ticketing service, and desired depth (e.g., 'Best practices for integrating AI chatbots with ServiceNow for an MSP team, focusing on automation efficiency and case studies')."
+}
