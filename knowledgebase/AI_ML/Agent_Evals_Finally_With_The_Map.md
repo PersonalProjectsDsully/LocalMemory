@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Agent Evals: Finally, With The Map
-author: Channel Video
+author: AI Engineer
 video_id: y2Drx0SDZLo
 video_url: https://www.youtube.com/watch?v=y2Drx0SDZLo
 thumbnail_url: https://img.youtube.com/vi/y2Drx0SDZLo/mqdefault.jpg

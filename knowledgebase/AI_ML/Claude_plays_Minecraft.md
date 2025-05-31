@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Claude plays Minecraft!
-author: Channel Video
+author: AI Engineer
 video_id: 1B9i7FBsRVQ
 video_url: https://www.youtube.com/watch?v=1B9i7FBsRVQ
 thumbnail_url: https://img.youtube.com/vi/1B9i7FBsRVQ/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Tool Calling Is Not Just Plumbing for AI Agents — Roy Derks
-author: Channel Video
+author: AI Engineer
 video_id: zuMw0pkPXpU
 video_url: https://www.youtube.com/watch?v=zuMw0pkPXpU
 thumbnail_url: https://img.youtube.com/vi/zuMw0pkPXpU/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: LLM Quality Optimization Bootcamp: Thierry Moreau and Pedro Torruella
-author: Channel Video
+author: AI Engineer
 video_id: 2Wtq2GvUicw
 video_url: https://www.youtube.com/watch?v=2Wtq2GvUicw
 thumbnail_url: https://img.youtube.com/vi/2Wtq2GvUicw/mqdefault.jpg

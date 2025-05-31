@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Which Jobs Can Be Replaced Today:  Fryderyk Wiatrowski and Peter Albert
-author: Channel Video
+author: AI Engineer
 video_id: R3hTescenDw
 video_url: https://www.youtube.com/watch?v=R3hTescenDw
 thumbnail_url: https://img.youtube.com/vi/R3hTescenDw/mqdefault.jpg

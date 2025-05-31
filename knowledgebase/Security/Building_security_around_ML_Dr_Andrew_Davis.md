@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Building security around ML: Dr. Andrew Davis
-author: Channel Video
+author: AI Engineer
 video_id: GVbPiq3Pet0
 video_url: https://www.youtube.com/watch?v=GVbPiq3Pet0
 thumbnail_url: https://img.youtube.com/vi/GVbPiq3Pet0/mqdefault.jpg

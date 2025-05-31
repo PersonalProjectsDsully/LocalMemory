@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: How to build the world's fastest voice bot: Kwindla Hultman Kramer
-author: Channel Video
+author: AI Engineer
 video_id: dRQHikOrH2A
 video_url: https://www.youtube.com/watch?v=dRQHikOrH2A
 thumbnail_url: https://img.youtube.com/vi/dRQHikOrH2A/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Your LLM Ran Out of Knowledge — Now What?
-author: Channel Video
+author: AI Engineer
 video_id: ya_9_niq2as
 video_url: https://www.youtube.com/watch?v=ya_9_niq2as
 thumbnail_url: https://img.youtube.com/vi/ya_9_niq2as/mqdefault.jpg

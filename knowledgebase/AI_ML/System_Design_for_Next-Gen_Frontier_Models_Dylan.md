@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: System Design for Next-Gen Frontier Models — Dylan Patel, SemiAnalysis
-author: Channel Video
+author: AI Engineer
 video_id: gFyBdBm0AGo
 video_url: https://www.youtube.com/watch?v=gFyBdBm0AGo
 thumbnail_url: https://img.youtube.com/vi/gFyBdBm0AGo/mqdefault.jpg

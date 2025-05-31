@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: The Hidden Costs of Building Your Own RAG Stack — Ofer Vectara
-author: Channel Video
+author: AI Engineer
 video_id: 62U6FLUCPWs
 video_url: https://www.youtube.com/watch?v=62U6FLUCPWs
 thumbnail_url: https://img.youtube.com/vi/62U6FLUCPWs/mqdefault.jpg

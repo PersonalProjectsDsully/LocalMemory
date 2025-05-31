@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Building and evaluating AI Agents — Sayash Kapoor, AI Snake Oil
-author: Channel Video
+author: AI Engineer
 video_id: d5EltXhbcfA
 video_url: https://www.youtube.com/watch?v=d5EltXhbcfA
 thumbnail_url: https://img.youtube.com/vi/d5EltXhbcfA/mqdefault.jpg

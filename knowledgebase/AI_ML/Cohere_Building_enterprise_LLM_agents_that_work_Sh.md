@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Cohere: Building enterprise LLM agents that work (Shaan Desai)
-author: Channel Video
+author: AI Engineer
 video_id: 4J8-D0sgU9A
 video_url: https://www.youtube.com/watch?v=4J8-D0sgU9A
 thumbnail_url: https://img.youtube.com/vi/4J8-D0sgU9A/mqdefault.jpg

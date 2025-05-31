@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: How We Build Effective Agents: Barry Zhang, Anthropic
-author: Channel Video
+author: AI Engineer
 video_id: D7_ipDqhtwk
 video_url: https://www.youtube.com/watch?v=D7_ipDqhtwk
 thumbnail_url: https://img.youtube.com/vi/D7_ipDqhtwk/mqdefault.jpg

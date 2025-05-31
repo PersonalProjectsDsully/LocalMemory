@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: OpenAI for VP's of AI + Advice for Building Agents
-author: Channel Video
+author: AI Engineer
 video_id: joHR2pmxDQE
 video_url: https://www.youtube.com/watch?v=joHR2pmxDQE
 thumbnail_url: https://img.youtube.com/vi/joHR2pmxDQE/mqdefault.jpg

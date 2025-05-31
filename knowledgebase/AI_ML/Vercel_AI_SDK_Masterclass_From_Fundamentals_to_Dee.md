@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Vercel AI SDK Masterclass: From Fundamentals to Deep Research
-author: Channel Video
+author: AI Engineer
 video_id: kDlqpN1JyIw
 video_url: https://www.youtube.com/watch?v=kDlqpN1JyIw
 thumbnail_url: https://img.youtube.com/vi/kDlqpN1JyIw/mqdefault.jpg

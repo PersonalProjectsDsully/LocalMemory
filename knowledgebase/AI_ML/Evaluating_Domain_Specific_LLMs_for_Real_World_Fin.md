@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Evaluating Domain Specific LLMs for Real World Finance — Waseem Alshikh, Writer
-author: Channel Video
+author: AI Engineer
 video_id: pPvoLjYj_mY
 video_url: https://www.youtube.com/watch?v=pPvoLjYj_mY
 thumbnail_url: https://img.youtube.com/vi/pPvoLjYj_mY/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: The Adversarial Path to the Personal Assistant: Sumit Agarwal
-author: Channel Video
+author: AI Engineer
 video_id: ckLXb15BnM8
 video_url: https://www.youtube.com/watch?v=ckLXb15BnM8
 thumbnail_url: https://img.youtube.com/vi/ckLXb15BnM8/mqdefault.jpg

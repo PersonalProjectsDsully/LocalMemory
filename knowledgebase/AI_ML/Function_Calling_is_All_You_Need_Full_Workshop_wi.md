@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Function Calling is All You Need — Full Workshop, with Ilan Bigio of OpenAI
-author: Channel Video
+author: AI Engineer
 video_id: KUEmEb71vzQ
 video_url: https://www.youtube.com/watch?v=KUEmEb71vzQ
 thumbnail_url: https://img.youtube.com/vi/KUEmEb71vzQ/mqdefault.jpg

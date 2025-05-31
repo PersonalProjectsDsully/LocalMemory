@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: RAG Agents in Prod: 10 Lessons We Learned — Douwe Kiela, creator of RAG
-author: Channel Video
+author: AI Engineer
 video_id: kPL-6-9MVyA
 video_url: https://www.youtube.com/watch?v=kPL-6-9MVyA
 thumbnail_url: https://img.youtube.com/vi/kPL-6-9MVyA/mqdefault.jpg

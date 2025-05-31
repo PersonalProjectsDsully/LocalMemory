@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Reverse Conway's law and GenAI: How agents will take over the organisation - Patrick Debois
-author: Channel Video
+author: AI Engineer
 video_id: FpJ9dPe1qYQ
 video_url: https://www.youtube.com/watch?v=FpJ9dPe1qYQ
 thumbnail_url: https://img.youtube.com/vi/FpJ9dPe1qYQ/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Unveiling the latest Gemma model advancements: Kathleen Kenealy
-author: Channel Video
+author: AI Engineer
 video_id: Xmkl27AM2VQ
 video_url: https://www.youtube.com/watch?v=Xmkl27AM2VQ
 thumbnail_url: https://img.youtube.com/vi/Xmkl27AM2VQ/mqdefault.jpg

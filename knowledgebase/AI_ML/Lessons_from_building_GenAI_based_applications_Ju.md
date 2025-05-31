@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Lessons from building GenAI based applications — Juan Peredo
-author: Channel Video
+author: AI Engineer
 video_id: YYcNm2RexnY
 video_url: https://www.youtube.com/watch?v=YYcNm2RexnY
 thumbnail_url: https://img.youtube.com/vi/YYcNm2RexnY/mqdefault.jpg

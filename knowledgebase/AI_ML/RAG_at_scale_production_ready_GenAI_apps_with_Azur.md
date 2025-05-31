@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: RAG at scale: production ready GenAI apps with Azure AI Search
-author: Channel Video
+author: AI Engineer
 video_id: _2tZaDs-w5s
 video_url: https://www.youtube.com/watch?v=_2tZaDs-w5s
 thumbnail_url: https://img.youtube.com/vi/_2tZaDs-w5s/mqdefault.jpg

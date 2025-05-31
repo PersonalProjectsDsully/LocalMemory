@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Frontier Feud: Anthropic, Google DeepMind, Meta FAIR, Thinking Machines — Barr Yaron, Amplify
-author: Channel Video
+author: AI Engineer
 video_id: BWqB6aatreE
 video_url: https://www.youtube.com/watch?v=BWqB6aatreE
 thumbnail_url: https://img.youtube.com/vi/BWqB6aatreE/mqdefault.jpg

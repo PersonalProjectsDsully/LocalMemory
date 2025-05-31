@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: This video was edited with AI agent. But how?
-author: Channel Video
+author: AI Engineer
 video_id: r0AG44qYKsI
 video_url: https://www.youtube.com/watch?v=r0AG44qYKsI
 thumbnail_url: https://img.youtube.com/vi/r0AG44qYKsI/mqdefault.jpg

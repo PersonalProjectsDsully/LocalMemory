@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Fine tune 20 Llama Models in 5 Minutes: Santosh Radha
-author: Channel Video
+author: AI Engineer
 video_id: zHYQZFy0UVk
 video_url: https://www.youtube.com/watch?v=zHYQZFy0UVk
 thumbnail_url: https://img.youtube.com/vi/zHYQZFy0UVk/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: How to evaluate a model for your use case: Emmanuel Turlay
-author: Channel Video
+author: AI Engineer
 video_id: pj_hKFhnJCw
 video_url: https://www.youtube.com/watch?v=pj_hKFhnJCw
 thumbnail_url: https://img.youtube.com/vi/pj_hKFhnJCw/mqdefault.jpg

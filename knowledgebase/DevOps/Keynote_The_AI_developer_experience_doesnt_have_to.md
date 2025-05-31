@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Keynote: The AI developer experience doesn't have to suck – why and how we built Modal
-author: Channel Video
+author: AI Engineer
 video_id: qeDPKbWjsuk
 video_url: https://www.youtube.com/watch?v=qeDPKbWjsuk
 thumbnail_url: https://img.youtube.com/vi/qeDPKbWjsuk/mqdefault.jpg

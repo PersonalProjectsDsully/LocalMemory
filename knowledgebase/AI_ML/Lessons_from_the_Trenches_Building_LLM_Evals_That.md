@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Lessons from the Trenches: Building LLM Evals That Work IRL: Aparna Dhinkaran
-author: Channel Video
+author: AI Engineer
 video_id: nbZzSC5A6hs
 video_url: https://www.youtube.com/watch?v=nbZzSC5A6hs
 thumbnail_url: https://img.youtube.com/vi/nbZzSC5A6hs/mqdefault.jpg

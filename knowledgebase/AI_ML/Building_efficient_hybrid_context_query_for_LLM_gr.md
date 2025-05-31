@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Building efficient hybrid context query for LLM grounding: Simrat Hanspal
-author: Channel Video
+author: AI Engineer
 video_id: pijYURicI1Y
 video_url: https://www.youtube.com/watch?v=pijYURicI1Y
 thumbnail_url: https://img.youtube.com/vi/pijYURicI1Y/mqdefault.jpg

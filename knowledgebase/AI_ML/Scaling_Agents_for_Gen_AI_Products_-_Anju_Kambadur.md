@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Scaling Agents for Gen AI Products - Anju Kambadur, Bloomberg Head of AI Engineering
-author: Channel Video
+author: AI Engineer
 video_id: b2GqTDWtg6s
 video_url: https://www.youtube.com/watch?v=b2GqTDWtg6s
 thumbnail_url: https://img.youtube.com/vi/b2GqTDWtg6s/mqdefault.jpg

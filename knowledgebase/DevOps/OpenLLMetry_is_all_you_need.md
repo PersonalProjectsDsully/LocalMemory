@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: OpenLLMetry is all you need
-author: Channel Video
+author: AI Engineer
 video_id: KVgbERRPU4M
 video_url: https://www.youtube.com/watch?v=KVgbERRPU4M
 thumbnail_url: https://img.youtube.com/vi/KVgbERRPU4M/mqdefault.jpg

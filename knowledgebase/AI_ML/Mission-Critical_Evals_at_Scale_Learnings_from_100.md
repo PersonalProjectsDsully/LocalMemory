@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Mission-Critical Evals at Scale (Learnings from 100k medical decisions)
-author: Channel Video
+author: AI Engineer
 video_id: cZ5ZJy19KMo
 video_url: https://www.youtube.com/watch?v=cZ5ZJy19KMo
 thumbnail_url: https://img.youtube.com/vi/cZ5ZJy19KMo/mqdefault.jpg

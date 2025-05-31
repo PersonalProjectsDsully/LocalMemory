@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Building AI Agents with Real ROI in the Enterprise SDLC: Bruno (Booking.com) & Beyang (Sourcegraph)
-author: Channel Video
+author: AI Engineer
 video_id: UXOLprPvr-0
 video_url: https://www.youtube.com/watch?v=UXOLprPvr-0
 thumbnail_url: https://img.youtube.com/vi/UXOLprPvr-0/mqdefault.jpg

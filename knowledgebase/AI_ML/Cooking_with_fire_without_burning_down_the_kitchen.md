@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Cooking with fire without burning down the kitchen: Dominik Kundel
-author: Channel Video
+author: AI Engineer
 video_id: AVjrkXGnF2M
 video_url: https://www.youtube.com/watch?v=AVjrkXGnF2M
 thumbnail_url: https://img.youtube.com/vi/AVjrkXGnF2M/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Creating Agents that Co-Create — Karina Nguyen, OpenAI
-author: Channel Video
+author: AI Engineer
 video_id: 1XvN5EBDnDw
 video_url: https://www.youtube.com/watch?v=1XvN5EBDnDw
 thumbnail_url: https://img.youtube.com/vi/1XvN5EBDnDw/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Trust, but Verify: Knowledge Agents for Finance Workflows - Mike Conover
-author: Channel Video
+author: AI Engineer
 video_id: MWTJIAwAAnk
 video_url: https://www.youtube.com/watch?v=MWTJIAwAAnk
 thumbnail_url: https://img.youtube.com/vi/MWTJIAwAAnk/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Accelerating Mixture of Experts Training With Rail Optimized InfiniBand Networking in Crusoe Cloud
-author: Channel Video
+author: AI Engineer
 video_id: tQTB4MU_z8w
 video_url: https://www.youtube.com/watch?v=tQTB4MU_z8w
 thumbnail_url: https://img.youtube.com/vi/tQTB4MU_z8w/mqdefault.jpg

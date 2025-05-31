@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Insights on Building AI Teams — Heath Black, SignalFire
-author: Channel Video
+author: AI Engineer
 video_id: q_ixa5EW8DY
 video_url: https://www.youtube.com/watch?v=q_ixa5EW8DY
 thumbnail_url: https://img.youtube.com/vi/q_ixa5EW8DY/mqdefault.jpg

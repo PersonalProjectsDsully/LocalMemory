@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: GitHub Next Explorations: Rahul Pandita
-author: Channel Video
+author: AI Engineer
 video_id: 1oySeF37SZc
 video_url: https://www.youtube.com/watch?v=1oySeF37SZc
 thumbnail_url: https://img.youtube.com/vi/1oySeF37SZc/mqdefault.jpg

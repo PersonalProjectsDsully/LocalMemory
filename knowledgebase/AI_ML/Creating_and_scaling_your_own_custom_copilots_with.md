@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Creating and scaling your own custom copilots with Azure AI Studio: Hanchi Wang
-author: Channel Video
+author: AI Engineer
 video_id: NjNEdjDvKu8
 video_url: https://www.youtube.com/watch?v=NjNEdjDvKu8
 thumbnail_url: https://img.youtube.com/vi/NjNEdjDvKu8/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Navigating AI’s Frontier in 2025 - Grace Isford, Lux Capital
-author: Channel Video
+author: AI Engineer
 video_id: HS5a8VIKsvA
 video_url: https://www.youtube.com/watch?v=HS5a8VIKsvA
 thumbnail_url: https://img.youtube.com/vi/HS5a8VIKsvA/mqdefault.jpg

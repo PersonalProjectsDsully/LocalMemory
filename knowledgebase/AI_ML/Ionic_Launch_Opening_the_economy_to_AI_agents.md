@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Ionic Launch: Opening the economy to AI agents
-author: Channel Video
+author: AI Engineer
 video_id: Ju9PeKEKb24
 video_url: https://www.youtube.com/watch?v=Ju9PeKEKb24
 thumbnail_url: https://img.youtube.com/vi/Ju9PeKEKb24/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Best Practices for Evaluating Large Language Model Applications with llmeval: Niklas Nielsen
-author: Channel Video
+author: AI Engineer
 video_id: fiXjTif1nS4
 video_url: https://www.youtube.com/watch?v=fiXjTif1nS4
 thumbnail_url: https://img.youtube.com/vi/fiXjTif1nS4/mqdefault.jpg

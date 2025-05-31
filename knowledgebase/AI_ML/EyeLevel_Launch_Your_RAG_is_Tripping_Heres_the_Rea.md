@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: EyeLevel Launch: Your RAG is Tripping, Here's the Real Reason Why
-author: Channel Video
+author: AI Engineer
 video_id: 8RbTZl7bs5U
 video_url: https://www.youtube.com/watch?v=8RbTZl7bs5U
 thumbnail_url: https://img.youtube.com/vi/8RbTZl7bs5U/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: BotDojo Launch: Enhancing AI Assistants with Evaluations and Synthetic Data
-author: Channel Video
+author: AI Engineer
 video_id: PNjMwdCo_YM
 video_url: https://www.youtube.com/watch?v=PNjMwdCo_YM
 thumbnail_url: https://img.youtube.com/vi/PNjMwdCo_YM/mqdefault.jpg

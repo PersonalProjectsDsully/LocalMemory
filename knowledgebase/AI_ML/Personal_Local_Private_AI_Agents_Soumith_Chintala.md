@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Personal, Local, Private AI Agents: Soumith Chintala
-author: Channel Video
+author: AI Engineer
 video_id: jMoAaZP_Kkw
 video_url: https://www.youtube.com/watch?v=jMoAaZP_Kkw
 thumbnail_url: https://img.youtube.com/vi/jMoAaZP_Kkw/mqdefault.jpg

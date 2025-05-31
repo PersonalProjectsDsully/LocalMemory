@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: The Devops Engineer Who Never Sleeps — Diamond Bishop, Datadog
-author: Channel Video
+author: AI Engineer
 video_id: VZzUhELgYk4
 video_url: https://www.youtube.com/watch?v=VZzUhELgYk4
 thumbnail_url: https://img.youtube.com/vi/VZzUhELgYk4/mqdefault.jpg

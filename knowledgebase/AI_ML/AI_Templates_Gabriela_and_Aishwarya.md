@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: AI Templates: Gabriela and Aishwarya
-author: Channel Video
+author: AI Engineer
 video_id: a0WvaMRZ9hc
 video_url: https://www.youtube.com/watch?v=a0WvaMRZ9hc
 thumbnail_url: https://img.youtube.com/vi/a0WvaMRZ9hc/mqdefault.jpg

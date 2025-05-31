@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Finetuning: 500m AI agents in production with 2 engineers — Mustafa Ali & Kyle Corbitt
-author: Channel Video
+author: AI Engineer
 video_id: zM9RYqCcioM
 video_url: https://www.youtube.com/watch?v=zM9RYqCcioM
 thumbnail_url: https://img.youtube.com/vi/zM9RYqCcioM/mqdefault.jpg

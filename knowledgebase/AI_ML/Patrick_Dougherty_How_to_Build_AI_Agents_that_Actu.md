@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Patrick Dougherty: How to Build AI Agents that Actually Work
-author: Channel Video
+author: AI Engineer
 video_id: 7MiFIhlkBoE
 video_url: https://www.youtube.com/watch?v=7MiFIhlkBoE
 thumbnail_url: https://img.youtube.com/vi/7MiFIhlkBoE/mqdefault.jpg

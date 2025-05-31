@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Optimizing LLMs in Insurance with DSPy: Jeronim Morina
-author: Channel Video
+author: AI Engineer
 video_id: IAdZxqjZ45U
 video_url: https://www.youtube.com/watch?v=IAdZxqjZ45U
 thumbnail_url: https://img.youtube.com/vi/IAdZxqjZ45U/mqdefault.jpg

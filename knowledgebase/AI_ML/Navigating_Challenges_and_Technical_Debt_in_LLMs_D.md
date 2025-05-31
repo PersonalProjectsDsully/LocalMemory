@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Navigating Challenges and Technical Debt in LLMs Deployment: Ahmed Menshawy
-author: Channel Video
+author: AI Engineer
 video_id: IbJ40EwaNlM
 video_url: https://www.youtube.com/watch?v=IbJ40EwaNlM
 thumbnail_url: https://img.youtube.com/vi/IbJ40EwaNlM/mqdefault.jpg

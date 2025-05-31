@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Ensure AI Agents Work: Evaluation Frameworks for Scaling Success — Aparna Dhinkaran, CEO Arize
-author: Channel Video
+author: AI Engineer
 video_id: OC04sP_QgTI
 video_url: https://www.youtube.com/watch?v=OC04sP_QgTI
 thumbnail_url: https://img.youtube.com/vi/OC04sP_QgTI/mqdefault.jpg

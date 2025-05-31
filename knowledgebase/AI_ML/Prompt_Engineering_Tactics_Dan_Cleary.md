@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Prompt Engineering Tactics: Dan Cleary
-author: Channel Video
+author: AI Engineer
 video_id: 7AYUCAuFYeA
 video_url: https://www.youtube.com/watch?v=7AYUCAuFYeA
 thumbnail_url: https://img.youtube.com/vi/7AYUCAuFYeA/mqdefault.jpg

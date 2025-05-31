@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Privacy First Enterprise AI: Building AI Agents that Never Leave Your Security Boundary
-author: Channel Video
+author: AI Engineer
 video_id: _pBfv1rbLBU
 video_url: https://www.youtube.com/watch?v=_pBfv1rbLBU
 thumbnail_url: https://img.youtube.com/vi/_pBfv1rbLBU/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Building an AI assistant that makes phone calls [Convex Workshop]
-author: Channel Video
+author: AI Engineer
 video_id: idDnpGqJd80
 video_url: https://www.youtube.com/watch?v=idDnpGqJd80
 thumbnail_url: https://img.youtube.com/vi/idDnpGqJd80/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Lets Build An Agent from Scratch
-author: Channel Video
+author: AI Engineer
 video_id: xzXdLRUyjUg
 video_url: https://www.youtube.com/watch?v=xzXdLRUyjUg
 thumbnail_url: https://img.youtube.com/vi/xzXdLRUyjUg/mqdefault.jpg

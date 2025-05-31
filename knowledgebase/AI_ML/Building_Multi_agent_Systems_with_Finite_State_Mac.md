@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Building Multi agent Systems with Finite State Machines
-author: Channel Video
+author: AI Engineer
 video_id: OD13PiXw60o
 video_url: https://www.youtube.com/watch?v=OD13PiXw60o
 thumbnail_url: https://img.youtube.com/vi/OD13PiXw60o/mqdefault.jpg

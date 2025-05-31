@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Why Agent Engineering — swyx
-author: Channel Video
+author: AI Engineer
 video_id: 5N33E9tC400
 video_url: https://www.youtube.com/watch?v=5N33E9tC400
 thumbnail_url: https://img.youtube.com/vi/5N33E9tC400/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Hiring & Building an AI Engineering Team: Dr. Bryan Bischof
-author: Channel Video
+author: AI Engineer
 video_id: IxXMKT2FDRk
 video_url: https://www.youtube.com/watch?v=IxXMKT2FDRk
 thumbnail_url: https://img.youtube.com/vi/IxXMKT2FDRk/mqdefault.jpg

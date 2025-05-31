@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: AI + Security & Safety — Don Bosco Durai
-author: Channel Video
+author: AI Engineer
 video_id: G7aSH6N7qY4
 video_url: https://www.youtube.com/watch?v=G7aSH6N7qY4
 thumbnail_url: https://img.youtube.com/vi/G7aSH6N7qY4/mqdefault.jpg

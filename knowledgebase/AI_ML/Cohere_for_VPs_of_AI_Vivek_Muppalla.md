@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Cohere for VPs of AI: Vivek Muppalla
-author: Channel Video
+author: AI Engineer
 video_id: u3NofYYstaY
 video_url: https://www.youtube.com/watch?v=u3NofYYstaY
 thumbnail_url: https://img.youtube.com/vi/u3NofYYstaY/mqdefault.jpg

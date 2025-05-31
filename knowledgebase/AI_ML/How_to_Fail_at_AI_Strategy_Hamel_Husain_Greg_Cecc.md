@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: How to Fail at AI Strategy: Hamel Husain & Greg Ceccarelli
-author: Channel Video
+author: AI Engineer
 video_id: 89aQ7T6cMwA
 video_url: https://www.youtube.com/watch?v=89aQ7T6cMwA
 thumbnail_url: https://img.youtube.com/vi/89aQ7T6cMwA/mqdefault.jpg

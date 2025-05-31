@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Accelerate your AI journey with Azure AI model catalog: Sharmila Chokalingam
-author: Channel Video
+author: AI Engineer
 video_id: gL9kfxt6uo0
 video_url: https://www.youtube.com/watch?v=gL9kfxt6uo0
 thumbnail_url: https://img.youtube.com/vi/gL9kfxt6uo0/mqdefault.jpg

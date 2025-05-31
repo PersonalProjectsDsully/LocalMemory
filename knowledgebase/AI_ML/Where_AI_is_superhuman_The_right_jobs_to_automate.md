@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Where AI is superhuman: The right jobs to automate with LLMs
-author: Channel Video
+author: AI Engineer
 video_id: R2VfIjuWhgw
 video_url: https://www.youtube.com/watch?v=R2VfIjuWhgw
 thumbnail_url: https://img.youtube.com/vi/R2VfIjuWhgw/mqdefault.jpg

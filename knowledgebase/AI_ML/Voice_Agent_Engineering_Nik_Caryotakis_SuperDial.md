@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Voice Agent Engineering — Nik Caryotakis, SuperDial
-author: Channel Video
+author: AI Engineer
 video_id: 2p2ErKRELHM
 video_url: https://www.youtube.com/watch?v=2p2ErKRELHM
 thumbnail_url: https://img.youtube.com/vi/2p2ErKRELHM/mqdefault.jpg

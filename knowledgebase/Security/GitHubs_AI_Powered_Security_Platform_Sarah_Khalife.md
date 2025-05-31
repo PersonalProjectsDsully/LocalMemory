@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: GitHub's AI Powered Security Platform: Sarah Khalife
-author: Channel Video
+author: AI Engineer
 video_id: utTqdQpe39A
 video_url: https://www.youtube.com/watch?v=utTqdQpe39A
 thumbnail_url: https://img.youtube.com/vi/utTqdQpe39A/mqdefault.jpg

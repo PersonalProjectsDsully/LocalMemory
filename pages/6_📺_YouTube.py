@@ -13,6 +13,7 @@ from utils.session_state_manager import initialize_session_state, auto_save_sett
 from utils.youtube_utils import extract_video_id, fetch_video_info
 from utils.youtube_channel_utils import extract_channel_id, fetch_channel_videos_basic, fetch_channel_videos_with_api, fetch_channel_videos_selenium
 from utils.duplicate_detection import find_existing_video, get_duplicate_handling_choice, update_existing_video_metadata, find_duplicate_videos, show_bulk_duplicate_options, show_duplicate_summary
+from utils.comprehensive_duplicate_detector import DuplicateDetector
 
 # Page configuration
 st.set_page_config(
@@ -1040,8 +1041,9 @@ with tab2:
                 videos_to_process = new_videos.copy()
                 
                 # Add duplicates based on user choices
-                for video in duplicate_videos:
-                    action = duplicate_actions.get(video['video_id'], 'skip')
+                for i, video in enumerate(duplicate_videos):
+                    video_key = video.get('video_id', f"video_{i}")
+                    action = duplicate_actions.get(video_key, 'skip')
                     if action != 'skip':
                         video['duplicate_action'] = action
                         videos_to_process.append(video)
@@ -1064,10 +1066,12 @@ with tab2:
                             existing_file = video.get('existing_file')
                             if existing_file:
                                 # Get fresh AI analysis (no transcript needed)
+                                # Use actual channel name from video object
+                                channel_name = video.get('channel', video.get('author', 'Unknown Channel'))
                                 intelligence = extract_content_intelligence(
                                     existing_file['body'],  # Use existing transcript
                                     video['title'],
-                                    "Channel Video",
+                                    channel_name,
                                     "youtube"
                                 )
                                 
@@ -1112,7 +1116,11 @@ with tab2:
                                     status_text.text(f"Processing: {video['title'][:50]}... (Retry {attempt}/3)")
                                     time.sleep(retry_delays[attempt])
                                 
-                                transcript = YouTubeTranscriptApi.get_transcript(video['video_id'])
+                                video_id = video.get('video_id')
+                                if not video_id:
+                                    transcript_error = "No video ID available"
+                                    break
+                                transcript = YouTubeTranscriptApi.get_transcript(video_id)
                                 break  # Success! Exit retry loop
                                 
                             except Exception as transcript_exc:
@@ -1133,12 +1141,14 @@ with tab2:
                                 if attempt == max_retries - 1:
                                     try:
                                         status_text.text(f"Processing: {video['title'][:50]}... (Trying alternative sources)")
-                                        transcript_list = YouTubeTranscriptApi.list_transcripts(video['video_id'])
-                                        available_transcripts = list(transcript_list)
-                                        if available_transcripts:
-                                            # Try the first available transcript
-                                            transcript = available_transcripts[0].fetch()
-                                            break
+                                        video_id = video.get('video_id')
+                                        if video_id:
+                                            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                                            available_transcripts = list(transcript_list)
+                                            if available_transcripts:
+                                                # Try the first available transcript
+                                                transcript = available_transcripts[0].fetch()
+                                                break
                                     except:
                                         pass
                         
@@ -1159,10 +1169,12 @@ with tab2:
                             status_text.text(f"Processing: {video['title'][:50]}... (🤖 AI Analysis)")
                             
                             # Get intelligent content analysis
+                            # Use actual channel name from video object
+                            channel_name = video.get('channel', video.get('author', 'Unknown Channel'))
                             intelligence = extract_content_intelligence(
                                 full_transcript_text_only,
                                 video['title'],
-                                "Channel Video",
+                                channel_name,
                                 "youtube"
                             )
                             
@@ -1170,14 +1182,14 @@ with tab2:
                             recommendation = recommend_category_and_tags(
                                 full_transcript_text_only,
                                 video['title'],
-                                "Channel Video"
+                                channel_name
                             )
                             
                             # Generate summary
                             summary = summarize_youtube_transcript(
                                 full_transcript_text_only,
                                 video['title'],
-                                "Channel Video"
+                                channel_name
                             )
                             
                             if summary:
@@ -1214,7 +1226,7 @@ with tab2:
                                 content = f"""---
 type: youtube
 title: {video['title']}
-author: Channel Video
+author: {channel_name}
 video_id: {video['video_id']}
 video_url: {video['link']}
 thumbnail_url: {video.get('thumbnail', f"https://img.youtube.com/vi/{video['video_id']}/mqdefault.jpg")}
@@ -1233,6 +1245,7 @@ confidence_score: {intelligence.get('confidence_score', 0.5)}
 
 # {video['title']}
 
+**Channel**: {channel_name}  
 **Video**: [Watch on YouTube]({video['link']})  
 **Published**: {video['published']}  
 **Category**: {category}  

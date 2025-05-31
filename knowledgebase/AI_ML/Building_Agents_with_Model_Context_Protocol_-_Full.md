@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Building Agents with Model Context Protocol - Full Workshop with Mahesh Murag of Anthropic
-author: Channel Video
+author: AI Engineer
 video_id: kQmXtrmQ5Zg
 video_url: https://www.youtube.com/watch?v=kQmXtrmQ5Zg
 thumbnail_url: https://img.youtube.com/vi/kQmXtrmQ5Zg/mqdefault.jpg

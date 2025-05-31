@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Rethinking how we Scaffold AI Agents - Rahul Sengottuvelu, Ramp
-author: Channel Video
+author: AI Engineer
 video_id: -rsTkYgnNzM
 video_url: https://www.youtube.com/watch?v=-rsTkYgnNzM
 thumbnail_url: https://img.youtube.com/vi/-rsTkYgnNzM/mqdefault.jpg

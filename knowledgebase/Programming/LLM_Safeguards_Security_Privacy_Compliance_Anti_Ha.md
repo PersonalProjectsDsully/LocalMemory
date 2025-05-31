@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: LLM Safeguards: Security Privacy Compliance Anti Hallucination: Daniel Whitenack
-author: Channel Video
+author: AI Engineer
 video_id: jdeMJJ_oNYg
 video_url: https://www.youtube.com/watch?v=jdeMJJ_oNYg
 thumbnail_url: https://img.youtube.com/vi/jdeMJJ_oNYg/mqdefault.jpg

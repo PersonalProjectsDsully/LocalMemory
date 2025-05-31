@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Anchoring Enterprise GenAI with Knowledge Graphs: Jonathan Lowe (Pfizer), Stephen Chin (Neo4j)
-author: Channel Video
+author: AI Engineer
 video_id: OpVkWc3YnFc
 video_url: https://www.youtube.com/watch?v=OpVkWc3YnFc
 thumbnail_url: https://img.youtube.com/vi/OpVkWc3YnFc/mqdefault.jpg

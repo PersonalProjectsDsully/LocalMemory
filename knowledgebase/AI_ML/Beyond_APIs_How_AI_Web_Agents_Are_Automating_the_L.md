@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Beyond APIs: How AI Web Agents Are Automating the "Long Tail" of Knowledge Work
-author: Channel Video
+author: AI Engineer
 video_id: kjSGc7uwDo8
 video_url: https://www.youtube.com/watch?v=kjSGc7uwDo8
 thumbnail_url: https://img.youtube.com/vi/kjSGc7uwDo8/mqdefault.jpg

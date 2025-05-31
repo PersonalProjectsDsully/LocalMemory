@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Substrate Launch: the API for modular AI
-author: Channel Video
+author: AI Engineer
 video_id: x8HbIJh2wpQ
 video_url: https://www.youtube.com/watch?v=x8HbIJh2wpQ
 thumbnail_url: https://img.youtube.com/vi/x8HbIJh2wpQ/mqdefault.jpg

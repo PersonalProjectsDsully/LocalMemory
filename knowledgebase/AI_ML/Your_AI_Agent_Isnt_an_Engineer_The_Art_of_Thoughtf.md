@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Your AI Agent Isn't an Engineer: The Art of Thoughtful Anthropomorphism
-author: Channel Video
+author: AI Engineer
 video_id: MExbNNG_VcI
 video_url: https://www.youtube.com/watch?v=MExbNNG_VcI
 thumbnail_url: https://img.youtube.com/vi/MExbNNG_VcI/mqdefault.jpg

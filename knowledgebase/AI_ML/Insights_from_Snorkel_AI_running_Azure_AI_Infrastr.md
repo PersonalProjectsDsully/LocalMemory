@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Insights from Snorkel AI running Azure AI Infrastructure: Humza Iqbal and Lachlan Ainley
-author: Channel Video
+author: AI Engineer
 video_id: LJa1SjCkYas
 video_url: https://www.youtube.com/watch?v=LJa1SjCkYas
 thumbnail_url: https://img.youtube.com/vi/LJa1SjCkYas/mqdefault.jpg

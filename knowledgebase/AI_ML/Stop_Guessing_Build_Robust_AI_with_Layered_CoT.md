@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Stop Guessing: Build Robust AI with Layered CoT
-author: Channel Video
+author: AI Engineer
 video_id: VTJHR7rQ2KI
 video_url: https://www.youtube.com/watch?v=VTJHR7rQ2KI
 thumbnail_url: https://img.youtube.com/vi/VTJHR7rQ2KI/mqdefault.jpg

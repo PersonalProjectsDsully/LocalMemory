@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Your Evals Are Meaningless (And Here’s How to Fix Them)
-author: Channel Video
+author: AI Engineer
 video_id: 3jwClx0Ft2E
 video_url: https://www.youtube.com/watch?v=3jwClx0Ft2E
 thumbnail_url: https://img.youtube.com/vi/3jwClx0Ft2E/mqdefault.jpg

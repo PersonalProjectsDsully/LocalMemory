@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Mastering LLM Inference Optimization From Theory to Cost Effective Deployment: Mark Moyou
-author: Channel Video
+author: AI Engineer
 video_id: 9tvJ_GYJA-o
 video_url: https://www.youtube.com/watch?v=9tvJ_GYJA-o
 thumbnail_url: https://img.youtube.com/vi/9tvJ_GYJA-o/mqdefault.jpg

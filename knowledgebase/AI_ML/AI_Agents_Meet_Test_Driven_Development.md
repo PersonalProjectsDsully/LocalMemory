@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: AI Agents, Meet Test Driven Development
-author: Channel Video
+author: AI Engineer
 video_id: U3MVU6JpocU
 video_url: https://www.youtube.com/watch?v=U3MVU6JpocU
 thumbnail_url: https://img.youtube.com/vi/U3MVU6JpocU/mqdefault.jpg

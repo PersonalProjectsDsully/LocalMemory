@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Customized, production ready inference with open source models: Dmytro (Dima) Dzhulgakov
-author: Channel Video
+author: AI Engineer
 video_id: ePMvfa8vgL8
 video_url: https://www.youtube.com/watch?v=ePMvfa8vgL8
 thumbnail_url: https://img.youtube.com/vi/ePMvfa8vgL8/mqdefault.jpg

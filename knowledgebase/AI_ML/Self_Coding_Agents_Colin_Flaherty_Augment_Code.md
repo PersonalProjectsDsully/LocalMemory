@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Self Coding Agents — Colin Flaherty, Augment Code
-author: Channel Video
+author: AI Engineer
 video_id: Iw_3cRf3lnM
 video_url: https://www.youtube.com/watch?v=Iw_3cRf3lnM
 thumbnail_url: https://img.youtube.com/vi/Iw_3cRf3lnM/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: How Coding Agents change Software Development Forever - Hailong Zhang
-author: Channel Video
+author: AI Engineer
 video_id: EUHx5ooJHuQ
 video_url: https://www.youtube.com/watch?v=EUHx5ooJHuQ
 thumbnail_url: https://img.youtube.com/vi/EUHx5ooJHuQ/mqdefault.jpg

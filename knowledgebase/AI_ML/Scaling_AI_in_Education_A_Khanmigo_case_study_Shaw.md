@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Scaling AI in Education: A Khanmigo case study: Shawn Jansepar
-author: Channel Video
+author: AI Engineer
 video_id: 3E7VAZaTG9M
 video_url: https://www.youtube.com/watch?v=3E7VAZaTG9M
 thumbnail_url: https://img.youtube.com/vi/3E7VAZaTG9M/mqdefault.jpg

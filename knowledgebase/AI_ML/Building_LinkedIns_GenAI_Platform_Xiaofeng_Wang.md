@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Building LinkedIn's GenAI Platform — Xiaofeng Wang
-author: Channel Video
+author: AI Engineer
 video_id: n9rjuBuShko
 video_url: https://www.youtube.com/watch?v=n9rjuBuShko
 thumbnail_url: https://img.youtube.com/vi/n9rjuBuShko/mqdefault.jpg

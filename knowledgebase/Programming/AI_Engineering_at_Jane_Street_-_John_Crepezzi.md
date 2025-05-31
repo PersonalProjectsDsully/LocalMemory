@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: AI Engineering at Jane Street - John Crepezzi
-author: Channel Video
+author: AI Engineer
 video_id: 0ML7ZLMdcl4
 video_url: https://www.youtube.com/watch?v=0ML7ZLMdcl4
 thumbnail_url: https://img.youtube.com/vi/0ML7ZLMdcl4/mqdefault.jpg

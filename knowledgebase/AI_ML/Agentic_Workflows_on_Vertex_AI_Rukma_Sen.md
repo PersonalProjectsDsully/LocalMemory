@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Agentic Workflows on Vertex AI: Rukma Sen
-author: Channel Video
+author: AI Engineer
 video_id: n0qemluQDtQ
 video_url: https://www.youtube.com/watch?v=n0qemluQDtQ
 thumbnail_url: https://img.youtube.com/vi/n0qemluQDtQ/mqdefault.jpg

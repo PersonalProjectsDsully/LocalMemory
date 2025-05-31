@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: The Rise of the AI Software Engineer: Jesse Han
-author: Channel Video
+author: AI Engineer
 video_id: wWRRs2zBr5I
 video_url: https://www.youtube.com/watch?v=wWRRs2zBr5I
 thumbnail_url: https://img.youtube.com/vi/wWRRs2zBr5I/mqdefault.jpg

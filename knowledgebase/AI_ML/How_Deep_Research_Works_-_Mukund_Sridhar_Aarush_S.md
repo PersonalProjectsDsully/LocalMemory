@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: How Deep Research Works - Mukund Sridhar & Aarush Selvan, Google DeepMind
-author: Channel Video
+author: AI Engineer
 video_id: eJOjdjO45Sc
 video_url: https://www.youtube.com/watch?v=eJOjdjO45Sc
 thumbnail_url: https://img.youtube.com/vi/eJOjdjO45Sc/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: WTF do people use Open Models for??
-author: Channel Video
+author: AI Engineer
 video_id: wJwTlvb_TSo
 video_url: https://www.youtube.com/watch?v=wJwTlvb_TSo
 thumbnail_url: https://img.youtube.com/vi/wJwTlvb_TSo/mqdefault.jpg

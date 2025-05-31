@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: AI Music Generation, From Prompt to Production: Phlo Young
-author: Channel Video
+author: AI Engineer
 video_id: CoaL4JZKsWI
 video_url: https://www.youtube.com/watch?v=CoaL4JZKsWI
 thumbnail_url: https://img.youtube.com/vi/CoaL4JZKsWI/mqdefault.jpg

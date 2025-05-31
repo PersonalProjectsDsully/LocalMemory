@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Reinforcement Learning for Agents - Will Brown, ML Researcher at Morgan Stanley
-author: Channel Video
+author: AI Engineer
 video_id: JIsgyk0Paic
 video_url: https://www.youtube.com/watch?v=JIsgyk0Paic
 thumbnail_url: https://img.youtube.com/vi/JIsgyk0Paic/mqdefault.jpg

@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Don't just slap on a chatbot: building AI that works before you ask
-author: Channel Video
+author: AI Engineer
 video_id: 2cEGQEllBGc
 video_url: https://www.youtube.com/watch?v=2cEGQEllBGc
 thumbnail_url: https://img.youtube.com/vi/2cEGQEllBGc/mqdefault.jpg

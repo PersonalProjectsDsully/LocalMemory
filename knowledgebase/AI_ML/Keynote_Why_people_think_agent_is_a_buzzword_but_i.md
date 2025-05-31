@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Keynote: Why people think "agent" is a buzzword but it isn't
-author: Channel Video
+author: AI Engineer
 video_id: D6v5rlqUIc8
 video_url: https://www.youtube.com/watch?v=D6v5rlqUIc8
 thumbnail_url: https://img.youtube.com/vi/D6v5rlqUIc8/mqdefault.jpg

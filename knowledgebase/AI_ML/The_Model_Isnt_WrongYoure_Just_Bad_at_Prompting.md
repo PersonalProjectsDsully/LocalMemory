@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: The Model Isn’t Wrong—You’re Just Bad at Prompting
-author: Channel Video
+author: AI Engineer
 video_id: Hp4MzVTXcKw
 video_url: https://www.youtube.com/watch?v=Hp4MzVTXcKw
 thumbnail_url: https://img.youtube.com/vi/Hp4MzVTXcKw/mqdefault.jpg

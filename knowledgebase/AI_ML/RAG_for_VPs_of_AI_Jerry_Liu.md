@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: RAG for VPs of AI: Jerry Liu
-author: Channel Video
+author: AI Engineer
 video_id: KJsUHnwSvTY
 video_url: https://www.youtube.com/watch?v=KJsUHnwSvTY
 thumbnail_url: https://img.youtube.com/vi/KJsUHnwSvTY/mqdefault.jpg

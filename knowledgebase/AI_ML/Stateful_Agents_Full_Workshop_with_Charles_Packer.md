@@ -1,7 +1,7 @@
 ---
 type: youtube
 title: Stateful Agents — Full Workshop with Charles Packer of Letta and MemGPT
-author: Channel Video
+author: AI Engineer
 video_id: E0k9Ppq6yXY
 video_url: https://www.youtube.com/watch?v=E0k9Ppq6yXY
 thumbnail_url: https://img.youtube.com/vi/E0k9Ppq6yXY/mqdefault.jpg
