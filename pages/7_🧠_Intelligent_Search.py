@@ -48,6 +48,125 @@ if 'prefill_task' not in st.session_state:
     st.session_state.prefill_task = None
 if 'prefill_task_used' not in st.session_state:
     st.session_state.prefill_task_used = False
+if 'qa_session_id' not in st.session_state:
+    st.session_state.qa_session_id = None
+
+# Helper function for managing QA improvements session state
+def update_improvement_session_state(original_report, improved_report, improvements_made, fix_type='general', fix_details=None):
+    """
+    Helper function to safely update improvement session state
+    """
+    if 'manual_improvement_applied' not in st.session_state:
+        # First improvement - initialize with truly original report
+        st.session_state.manual_improvement_applied = {
+            'original_report': original_report,
+            'improved_report': improved_report,
+            'improvements_made': improvements_made,
+            'individual_fixes': [],
+            'layer_fixes': [],
+            'timestamp': datetime.now()
+        }
+    else:
+        # Subsequent improvements - preserve original report, update improved version
+        st.session_state.manual_improvement_applied['improved_report'] = improved_report
+        st.session_state.manual_improvement_applied['improvements_made'].extend(improvements_made)
+        
+        # Ensure arrays exist
+        if 'individual_fixes' not in st.session_state.manual_improvement_applied:
+            st.session_state.manual_improvement_applied['individual_fixes'] = []
+        if 'layer_fixes' not in st.session_state.manual_improvement_applied:
+            st.session_state.manual_improvement_applied['layer_fixes'] = []
+    
+    # Add specific fix details based on type
+    if fix_type == 'individual' and fix_details:
+        st.session_state.manual_improvement_applied['individual_fixes'].append(fix_details)
+    elif fix_type == 'layer' and fix_details:
+        st.session_state.manual_improvement_applied['layer_fixes'].append(fix_details)
+
+def get_unique_key(base_key):
+    """Generate unique widget key using QA session ID"""
+    session_id = st.session_state.get('qa_session_id', 'default')
+    return f"{base_key}_{session_id}"
+
+def backup_session_state():
+    """Create a backup of current session state for error recovery"""
+    try:
+        if 'manual_improvement_applied' in st.session_state:
+            st.session_state._qa_backup = st.session_state.manual_improvement_applied.copy()
+        return True
+    except Exception as e:
+        print(f"Warning: Failed to backup session state: {e}")
+        return False
+
+def restore_session_state():
+    """Restore session state from backup"""
+    try:
+        if '_qa_backup' in st.session_state and st.session_state._qa_backup:
+            st.session_state.manual_improvement_applied = st.session_state._qa_backup.copy()
+            return True
+        return False
+    except Exception as e:
+        print(f"Warning: Failed to restore session state: {e}")
+        return False
+
+def log_qa_operation(operation, details=None, error=None):
+    """Log QA operations for debugging"""
+    try:
+        import time
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        log_entry = f"[{timestamp}] QA Operation: {operation}"
+        if details:
+            log_entry += f" | Details: {details}"
+        if error:
+            log_entry += f" | Error: {error}"
+        
+        # Initialize log if it doesn't exist
+        if 'qa_operation_log' not in st.session_state:
+            st.session_state.qa_operation_log = []
+        
+        # Keep only last 50 entries
+        st.session_state.qa_operation_log.append(log_entry)
+        if len(st.session_state.qa_operation_log) > 50:
+            st.session_state.qa_operation_log = st.session_state.qa_operation_log[-50:]
+            
+        print(log_entry)  # Also print to console
+    except Exception as e:
+        print(f"Warning: Failed to log QA operation: {e}")
+
+def safe_improvement_pipeline_call(search_engine, current_report, issues, sources, query_description):
+    """Safely call improvement pipeline with error handling and logging"""
+    try:
+        # Backup session state before attempting improvement
+        backup_session_state()
+        
+        # Log the operation
+        log_qa_operation("improvement_pipeline_call", f"Issues: {len(issues)}, Query: {query_description[:50]}...")
+        
+        # Verify improvement pipeline is available
+        if not hasattr(search_engine, 'improvement_pipeline') or search_engine.improvement_pipeline is None:
+            raise Exception("Improvement pipeline is not available")
+        
+        # Call the improvement pipeline
+        improved_report, improvements_made = search_engine.improvement_pipeline._apply_fixes(
+            current_report, 
+            issues,
+            sources,
+            query_description
+        )
+        
+        # Log success
+        log_qa_operation("improvement_pipeline_success", f"Changes made: {improved_report != current_report}")
+        
+        return improved_report, improvements_made, None
+        
+    except Exception as e:
+        error_msg = str(e)
+        log_qa_operation("improvement_pipeline_error", error=error_msg)
+        
+        # Attempt to restore session state on error
+        restore_session_state()
+        
+        return current_report, [], error_msg
 
 # Sidebar for options
 with st.sidebar:
@@ -804,6 +923,10 @@ if st.session_state.workflow_mode:
             with col3:
                 # Manual QA Review button
                 if st.button("🔍 QA Review"):
+                    # Generate unique session ID for this QA review
+                    import time
+                    st.session_state.qa_session_id = f"qa_{int(time.time())}"
+                    
                     with st.spinner("Running manual QA review..."):
                         try:
                             # Get the enhanced search engine and run QA on the report
@@ -988,6 +1111,168 @@ if st.session_state.workflow_mode:
                             st.write(f"**Problem:** {issue.get('issue', 'Not specified')}")
                             if issue.get('suggested_fix'):
                                 st.write(f"**Suggested Fix:** {issue.get('suggested_fix')}")
+                            
+                            # Custom instruction input and apply buttons
+                            col1, col2, col3 = st.columns([3, 1, 1])
+                            
+                            with col1:
+                                custom_instruction = st.text_area(
+                                    f"Custom instructions for Issue {i+1}:",
+                                    placeholder=f"Optional: Provide specific instructions for fixing this issue...\ne.g., 'Fix the lack of explicit intro and conclusion sections, make headings clearer'",
+                                    height=60,
+                                    key=get_unique_key(f"custom_instruction_{i}"),
+                                    help="Leave empty to use the suggested fix, or provide your own specific instructions"
+                                )
+                            
+                            with col2:
+                                # Apply with suggested fix
+                                if st.button(f"🔧 Apply Suggested", key=get_unique_key(f"apply_suggested_{i}"), help=f"Apply suggested fix for Issue {i+1}"):
+                                    with st.spinner(f"Applying suggested fix for Issue {i+1}..."):
+                                        try:
+                                            from utils.intelligent_search_enhanced import get_enhanced_search_engine
+                                            search_engine = get_enhanced_search_engine()
+                                            
+                                            if not hasattr(search_engine, 'improvement_pipeline') or search_engine.improvement_pipeline is None:
+                                                st.error("❌ Improvement pipeline is not available.")
+                                            else:
+                                                # Get current report
+                                                current_report = report
+                                                if 'manual_improvement_applied' in st.session_state:
+                                                    current_report = st.session_state.manual_improvement_applied['improved_report']
+                                                
+                                                # Apply fix for just this specific issue with suggested fix
+                                                sources = [{"title": "Manual QA Review", "content": {"body": "Individual issue fix - suggested"}, "author": "User", "category": "QA"}]
+                                                improved_report, improvements_made, error = safe_improvement_pipeline_call(
+                                                    search_engine,
+                                                    current_report, 
+                                                    [issue],  # Only this specific issue
+                                                    sources,
+                                                    f"Fix for Issue {i+1}: {issue.get('section_title', 'General')}"
+                                                )
+                                                
+                                                if error:
+                                                    st.error(f"❌ Failed to apply suggested fix for Issue {i+1}: {error}")
+                                                    continue
+                                                
+                                                if improved_report != current_report:
+                                                    # Use helper function to update session state
+                                                    fix_details = {
+                                                        'issue_number': i+1,
+                                                        'section': issue.get('section_title', 'General'),
+                                                        'fix_type': 'suggested',
+                                                        'fix_applied': datetime.now()
+                                                    }
+                                                    
+                                                    # Get the truly original report (before any improvements)
+                                                    original_report = report
+                                                    if 'manual_improvement_applied' in st.session_state:
+                                                        original_report = st.session_state.manual_improvement_applied.get('original_report', report)
+                                                    
+                                                    update_improvement_session_state(
+                                                        original_report, 
+                                                        improved_report, 
+                                                        improvements_made, 
+                                                        'individual', 
+                                                        fix_details
+                                                    )
+                                                    
+                                                    # Update workflow state if available
+                                                    try:
+                                                        if ('workflow_state' in st.session_state and 
+                                                            st.session_state.workflow_state is not None and
+                                                            'data' in st.session_state.workflow_state and
+                                                            isinstance(st.session_state.workflow_state['data'], dict)):
+                                                            st.session_state.workflow_state['data']['report'] = improved_report
+                                                    except Exception as e:
+                                                        print(f"Warning: Could not update workflow state: {e}")
+                                                    
+                                                    st.success(f"✅ Applied suggested fix for Issue {i+1}")
+                                                    st.rerun()
+                                                else:
+                                                    st.warning(f"⚠️ No changes made for Issue {i+1}")
+                                        except Exception as e:
+                                            st.error(f"❌ Failed to apply suggested fix for Issue {i+1}: {str(e)}")
+                            
+                            with col3:
+                                # Apply with custom instruction
+                                custom_disabled = not custom_instruction.strip()
+                                if st.button(f"✏️ Apply Custom", key=get_unique_key(f"apply_custom_{i}"), 
+                                           disabled=custom_disabled,
+                                           help=f"Apply custom fix for Issue {i+1}" if not custom_disabled else "Enter custom instructions first"):
+                                    with st.spinner(f"Applying custom fix for Issue {i+1}..."):
+                                        try:
+                                            from utils.intelligent_search_enhanced import get_enhanced_search_engine
+                                            search_engine = get_enhanced_search_engine()
+                                            
+                                            if not hasattr(search_engine, 'improvement_pipeline') or search_engine.improvement_pipeline is None:
+                                                st.error("❌ Improvement pipeline is not available.")
+                                            else:
+                                                # Get current report
+                                                current_report = report
+                                                if 'manual_improvement_applied' in st.session_state:
+                                                    current_report = st.session_state.manual_improvement_applied['improved_report']
+                                                
+                                                # Create custom issue with user's instructions
+                                                custom_issue = {
+                                                    'section_title': issue.get('section_title', 'General'),
+                                                    'issue': issue.get('issue', 'Not specified'),
+                                                    'suggested_fix': custom_instruction.strip()
+                                                }
+                                                
+                                                # Apply fix with custom instruction
+                                                sources = [{"title": "Manual QA Review - Custom", "content": {"body": "Individual issue fix - custom instruction"}, "author": "User", "category": "QA"}]
+                                                improved_report, improvements_made, error = safe_improvement_pipeline_call(
+                                                    search_engine,
+                                                    current_report, 
+                                                    [custom_issue],  # Use custom issue
+                                                    sources,
+                                                    f"Custom fix for Issue {i+1}: {custom_instruction[:50]}..."
+                                                )
+                                                
+                                                if error:
+                                                    st.error(f"❌ Failed to apply custom fix for Issue {i+1}: {error}")
+                                                    continue
+                                                
+                                                if improved_report != current_report:
+                                                    # Use helper function to update session state
+                                                    fix_details = {
+                                                        'issue_number': i+1,
+                                                        'section': issue.get('section_title', 'General'),
+                                                        'fix_type': 'custom',
+                                                        'custom_instruction': custom_instruction.strip(),
+                                                        'fix_applied': datetime.now()
+                                                    }
+                                                    
+                                                    # Get the truly original report (before any improvements)
+                                                    original_report = report
+                                                    if 'manual_improvement_applied' in st.session_state:
+                                                        original_report = st.session_state.manual_improvement_applied.get('original_report', report)
+                                                    
+                                                    update_improvement_session_state(
+                                                        original_report, 
+                                                        improved_report, 
+                                                        improvements_made, 
+                                                        'individual', 
+                                                        fix_details
+                                                    )
+                                                    
+                                                    # Update workflow state if available
+                                                    try:
+                                                        if ('workflow_state' in st.session_state and 
+                                                            st.session_state.workflow_state is not None and
+                                                            'data' in st.session_state.workflow_state and
+                                                            isinstance(st.session_state.workflow_state['data'], dict)):
+                                                            st.session_state.workflow_state['data']['report'] = improved_report
+                                                    except Exception as e:
+                                                        print(f"Warning: Could not update workflow state: {e}")
+                                                    
+                                                    st.success(f"✅ Applied custom fix for Issue {i+1}")
+                                                    st.rerun()
+                                                else:
+                                                    st.warning(f"⚠️ No changes made for Issue {i+1}")
+                                        except Exception as e:
+                                            st.error(f"❌ Failed to apply custom fix for Issue {i+1}: {str(e)}")
+                            
                             st.divider()
                 
                 # Layer-specific details
@@ -1006,8 +1291,175 @@ if st.session_state.workflow_mode:
                             
                             if layer_data.get('issues'):
                                 st.markdown("**Issues:**")
-                                for issue in layer_data['issues']:
+                                for idx, issue in enumerate(layer_data['issues']):
                                     st.write(f"• {issue}")
+                                    
+                                    # Custom instruction for layer issue
+                                    layer_col1, layer_col2, layer_col3 = st.columns([3, 1, 1])
+                                    
+                                    with layer_col1:
+                                        layer_custom_instruction = st.text_input(
+                                            f"Custom fix for {layer} issue {idx+1}:",
+                                            placeholder=f"Optional: Custom instruction for this {layer} issue...",
+                                            key=get_unique_key(f"layer_custom_{layer}_{idx}"),
+                                            help="Leave empty to use default fix"
+                                        )
+                                    
+                                    with layer_col2:
+                                        # Apply suggested fix for layer issue
+                                        if st.button("🔧 Default", key=get_unique_key(f"apply_layer_default_{layer}_{idx}"), help=f"Apply default fix for {layer} issue"):
+                                            with st.spinner(f"Applying {layer} fix..."):
+                                                try:
+                                                    from utils.intelligent_search_enhanced import get_enhanced_search_engine
+                                                    search_engine = get_enhanced_search_engine()
+                                                    
+                                                    if hasattr(search_engine, 'improvement_pipeline') and search_engine.improvement_pipeline is not None:
+                                                        # Get current report
+                                                        current_report = report
+                                                        if 'manual_improvement_applied' in st.session_state:
+                                                            current_report = st.session_state.manual_improvement_applied['improved_report']
+                                                        
+                                                        # Create a synthetic issue for layer-specific fixes
+                                                        synthetic_issue = {
+                                                            'section_title': f"{layer.title()} Issue",
+                                                            'issue': issue,
+                                                            'suggested_fix': f"Address {layer} concern: {issue}"
+                                                        }
+                                                        
+                                                        sources = [{"title": "Layer-specific QA Fix", "content": {"body": f"{layer} improvement"}, "author": "User", "category": "QA"}]
+                                                        improved_report, improvements_made, error = safe_improvement_pipeline_call(
+                                                            search_engine,
+                                                            current_report, 
+                                                            [synthetic_issue],
+                                                            sources,
+                                                            f"Fix for {layer} issue: {issue[:50]}..."
+                                                        )
+                                                        
+                                                        if error:
+                                                            st.error(f"❌ Failed to apply {layer} fix: {error}")
+                                                            continue
+                                                        
+                                                        if improved_report != current_report:
+                                                            # Use helper function to update session state
+                                                            fix_details = {
+                                                                'layer': layer,
+                                                                'issue': issue,
+                                                                'fix_type': 'default',
+                                                                'fix_applied': datetime.now()
+                                                            }
+                                                            
+                                                            # Get the truly original report (before any improvements)
+                                                            original_report = report
+                                                            if 'manual_improvement_applied' in st.session_state:
+                                                                original_report = st.session_state.manual_improvement_applied.get('original_report', report)
+                                                            
+                                                            update_improvement_session_state(
+                                                                original_report, 
+                                                                improved_report, 
+                                                                improvements_made, 
+                                                                'layer', 
+                                                                fix_details
+                                                            )
+                                                            
+                                                            # Update workflow state
+                                                            try:
+                                                                if ('workflow_state' in st.session_state and 
+                                                                    st.session_state.workflow_state is not None and
+                                                                    'data' in st.session_state.workflow_state and
+                                                                    isinstance(st.session_state.workflow_state['data'], dict)):
+                                                                    st.session_state.workflow_state['data']['report'] = improved_report
+                                                            except Exception as e:
+                                                                print(f"Warning: Could not update workflow state: {e}")
+                                                            
+                                                            st.success(f"✅ Applied {layer} fix")
+                                                            st.rerun()
+                                                        else:
+                                                            st.warning(f"⚠️ No changes made for {layer} issue")
+                                                    else:
+                                                        st.error("❌ Improvement pipeline not available")
+                                                except Exception as e:
+                                                    st.error(f"❌ Failed to apply {layer} fix: {str(e)}")
+                                    
+                                    with layer_col3:
+                                        # Apply custom fix for layer issue
+                                        layer_custom_disabled = not layer_custom_instruction.strip()
+                                        if st.button("✏️ Custom", key=get_unique_key(f"apply_layer_custom_{layer}_{idx}"), 
+                                                   disabled=layer_custom_disabled,
+                                                   help=f"Apply custom fix for {layer} issue" if not layer_custom_disabled else "Enter custom instruction first"):
+                                            with st.spinner(f"Applying custom {layer} fix..."):
+                                                try:
+                                                    from utils.intelligent_search_enhanced import get_enhanced_search_engine
+                                                    search_engine = get_enhanced_search_engine()
+                                                    
+                                                    if hasattr(search_engine, 'improvement_pipeline') and search_engine.improvement_pipeline is not None:
+                                                        # Get current report
+                                                        current_report = report
+                                                        if 'manual_improvement_applied' in st.session_state:
+                                                            current_report = st.session_state.manual_improvement_applied['improved_report']
+                                                        
+                                                        # Create custom synthetic issue with user's instruction
+                                                        custom_synthetic_issue = {
+                                                            'section_title': f"{layer.title()} Issue",
+                                                            'issue': issue,
+                                                            'suggested_fix': layer_custom_instruction.strip()
+                                                        }
+                                                        
+                                                        sources = [{"title": "Layer-specific QA Fix - Custom", "content": {"body": f"{layer} custom improvement"}, "author": "User", "category": "QA"}]
+                                                        improved_report, improvements_made, error = safe_improvement_pipeline_call(
+                                                            search_engine,
+                                                            current_report, 
+                                                            [custom_synthetic_issue],
+                                                            sources,
+                                                            f"Custom fix for {layer} issue: {layer_custom_instruction[:50]}..."
+                                                        )
+                                                        
+                                                        if error:
+                                                            st.error(f"❌ Failed to apply custom {layer} fix: {error}")
+                                                            continue
+                                                        
+                                                        if improved_report != current_report:
+                                                            # Use helper function to update session state
+                                                            fix_details = {
+                                                                'layer': layer,
+                                                                'issue': issue,
+                                                                'fix_type': 'custom',
+                                                                'custom_instruction': layer_custom_instruction.strip(),
+                                                                'fix_applied': datetime.now()
+                                                            }
+                                                            
+                                                            # Get the truly original report (before any improvements)
+                                                            original_report = report
+                                                            if 'manual_improvement_applied' in st.session_state:
+                                                                original_report = st.session_state.manual_improvement_applied.get('original_report', report)
+                                                            
+                                                            update_improvement_session_state(
+                                                                original_report, 
+                                                                improved_report, 
+                                                                improvements_made, 
+                                                                'layer', 
+                                                                fix_details
+                                                            )
+                                                            
+                                                            # Update workflow state
+                                                            try:
+                                                                if ('workflow_state' in st.session_state and 
+                                                                    st.session_state.workflow_state is not None and
+                                                                    'data' in st.session_state.workflow_state and
+                                                                    isinstance(st.session_state.workflow_state['data'], dict)):
+                                                                    st.session_state.workflow_state['data']['report'] = improved_report
+                                                            except Exception as e:
+                                                                print(f"Warning: Could not update workflow state: {e}")
+                                                            
+                                                            st.success(f"✅ Applied custom {layer} fix")
+                                                            st.rerun()
+                                                        else:
+                                                            st.warning(f"⚠️ No changes made for {layer} issue")
+                                                    else:
+                                                        st.error("❌ Improvement pipeline not available")
+                                                except Exception as e:
+                                                    st.error(f"❌ Failed to apply custom {layer} fix: {str(e)}")
+                                    
+                                    st.markdown("---")
                             
                             if layer_data.get('strengths'):
                                 st.markdown("**Strengths:**")
@@ -1101,7 +1553,7 @@ if st.session_state.workflow_mode:
                         "Re-run with config:",
                         qa_config_options,
                         index=1,  # Default to comprehensive
-                        key="manual_qa_config"
+                        key=get_unique_key("manual_qa_config")
                     )
                 
                 with col4:
@@ -1154,6 +1606,28 @@ if st.session_state.workflow_mode:
                                 for issue in improvement['issues_addressed']:
                                     st.write(f"• {issue}")
                         
+                        # Show individual fixes if any
+                        if improvement_info.get('individual_fixes'):
+                            st.markdown("**Individual Issue Fixes Applied:**")
+                            for fix in improvement_info['individual_fixes']:
+                                fix_type = fix.get('fix_type', 'unknown')
+                                if fix_type == 'custom' and fix.get('custom_instruction'):
+                                    st.write(f"✏️ Issue {fix['issue_number']}: {fix['section']} - **Custom Fix** - {fix['fix_applied'].strftime('%H:%M:%S')}")
+                                    st.caption(f"   Instruction: {fix['custom_instruction']}")
+                                else:
+                                    st.write(f"🔧 Issue {fix['issue_number']}: {fix['section']} - **Suggested Fix** - {fix['fix_applied'].strftime('%H:%M:%S')}")
+                        
+                        # Show layer fixes if any
+                        if improvement_info.get('layer_fixes'):
+                            st.markdown("**Layer-specific Fixes Applied:**")
+                            for fix in improvement_info['layer_fixes']:
+                                fix_type = fix.get('fix_type', 'default')
+                                if fix_type == 'custom' and fix.get('custom_instruction'):
+                                    st.write(f"✏️ {fix['layer'].title()}: {fix['issue'][:60]}... - **Custom Fix** - {fix['fix_applied'].strftime('%H:%M:%S')}")
+                                    st.caption(f"   Instruction: {fix['custom_instruction']}")
+                                else:
+                                    st.write(f"🔧 {fix['layer'].title()}: {fix['issue'][:60]}... - **Default Fix** - {fix['fix_applied'].strftime('%H:%M:%S')}")
+                        
                         # Option to compare before/after
                         if st.checkbox("Show Before/After Comparison"):
                             col1, col2 = st.columns(2)
@@ -1169,6 +1643,22 @@ if st.session_state.workflow_mode:
                                 if len(improvement_info.get('improved_report', '')) > 1000:
                                     improved_preview += "..."
                                 st.text_area("", value=improved_preview, height=200, disabled=True, key="improved_compare")
+                
+                # Debug panel for QA operations
+                if st.session_state.get('qa_operation_log'):
+                    with st.expander("🔧 QA Operation Log (Debug)", expanded=False):
+                        st.caption("Recent QA operations for debugging")
+                        for log_entry in reversed(st.session_state.qa_operation_log[-10:]):  # Show last 10
+                            if "error" in log_entry.lower():
+                                st.error(log_entry)
+                            elif "success" in log_entry.lower():
+                                st.success(log_entry)
+                            else:
+                                st.info(log_entry)
+                        
+                        if st.button("Clear Log", key="clear_qa_log"):
+                            st.session_state.qa_operation_log = []
+                            st.rerun()
 
 else:
     # Quick Search Interface (existing functionality)
