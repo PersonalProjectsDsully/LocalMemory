@@ -249,23 +249,51 @@ with col1:
 
 with col2:
     if provider == "OpenAI":
-        if OPENAI_AVAILABLE and st.session_state.get('openai_api_key'):
-            model_options = get_available_openai_models()
-            def on_openai_model_change():
-                st.session_state.openai_model = st.session_state.settings_openai_model
-                auto_save_settings()
-            
-            selected_model = st.selectbox(
-                "OpenAI Model",
-                model_options,
-                index=model_options.index(st.session_state.get('openai_model', 'gpt-3.5-turbo')) if st.session_state.get('openai_model', 'gpt-3.5-turbo') in model_options else 0,
-                key="settings_openai_model",
-                on_change=on_openai_model_change
-            )
+        # Debug information
+        api_key_present = bool(st.session_state.get('openai_api_key'))
+        
+        if not OPENAI_AVAILABLE:
+            st.error("❌ OpenAI library not available. Please install: `pip install openai`")
+        elif not api_key_present:
+            st.info("💡 Enter your OpenAI API key to see available models")
         else:
-            st.info("Enter your OpenAI API key to see available models")
+            # Show models
+            try:
+                model_options = get_available_openai_models(st.session_state.get('openai_api_key'))
+                def on_openai_model_change():
+                    st.session_state.openai_model = st.session_state.settings_openai_model
+                    auto_save_settings()
+                
+                selected_model = st.selectbox(
+                    "OpenAI Model",
+                    model_options,
+                    index=model_options.index(st.session_state.get('openai_model', 'gpt-3.5-turbo')) if st.session_state.get('openai_model', 'gpt-3.5-turbo') in model_options else 0,
+                    key="settings_openai_model",
+                    on_change=on_openai_model_change
+                )
+                
+                # Test connection button
+                if st.button("🔌 Test Connection", type="secondary"):
+                    with st.spinner("Testing OpenAI connection..."):
+                        success, message = test_llm_connection()
+                        if success:
+                            st.success(message)
+                        else:
+                            st.error(message)
+                            
+            except Exception as e:
+                st.error(f"Error loading OpenAI models: {e}")
+        
+        # Debug info (can be removed later)
+        with st.expander("🔧 Debug Info", expanded=False):
+            st.write(f"OpenAI Available: {OPENAI_AVAILABLE}")
+            st.write(f"API Key Present: {api_key_present}")
+            if api_key_present:
+                api_key = st.session_state.get('openai_api_key', '')
+                st.write(f"API Key Length: {len(api_key)}")
+                st.write(f"API Key Preview: {api_key[:8]}..." if len(api_key) > 8 else "Too short")
     elif provider == "LM Studio (Local)":
-        models, model_info = get_available_lmstudio_models(st.session_state.get('lmstudio_api_url', 'http://localhost:1234'))
+        models = get_available_lmstudio_models(st.session_state.get('lmstudio_api_url', 'http://localhost:1234'))
         if models:
             current_model = st.session_state.get('lmstudio_model', 'granite-3.0-2b-instruct')
             def on_lmstudio_model_change():
@@ -281,7 +309,6 @@ with col2:
             selected_model = st.selectbox(
                 "LM Studio Model",
                 models,
-                format_func=lambda x: f"{x} {model_info.get(x, '')}",
                 index=models.index(current_model) if current_model in models else 0,
                 key="settings_lmstudio_model",
                 on_change=on_lmstudio_model_change

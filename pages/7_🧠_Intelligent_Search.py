@@ -78,6 +78,28 @@ with st.sidebar:
         )
         st.session_state.show_analysis = show_query_analysis
         
+        # QA and improvement settings
+        st.subheader("Quality Assurance")
+        
+        enable_qa = st.checkbox(
+            "Enable QA Improvement",
+            value=st.session_state.get('enable_qa_improvement', True),
+            help="Automatically analyze and improve generated reports"
+        )
+        st.session_state.enable_qa_improvement = enable_qa
+        
+        if enable_qa:
+            qa_config = st.selectbox(
+                "QA Configuration",
+                options=["basic", "comprehensive", "trust_focused", "suggest_only"],
+                index=1,  # Default to comprehensive
+                help="Basic: Fast accuracy check\nComprehensive: Full analysis\nTrust-focused: Enhanced trust scoring\nSuggest only: No auto-fixes"
+            )
+            st.session_state.qa_config = qa_config
+            
+            # Configure the search engine's QA system
+            search_engine.configure_qa_system(qa_config)
+        
         st.divider()
         
         # Batch processing section
@@ -444,6 +466,9 @@ if st.session_state.workflow_mode:
             with st.expander("➕ Add New Task", expanded=bool(st.session_state.get('prefill_task') and not st.session_state.get('prefill_task_used'))):
                 # Check for pre-filled values
                 prefill = st.session_state.get('prefill_task') if not st.session_state.get('prefill_task_used') else {}
+                # Ensure prefill is a dict (not None)
+                if prefill is None:
+                    prefill = {}
                 
                 new_task_title = st.text_input("Task Title:", 
                                              value=prefill.get('title', ''),
@@ -754,12 +779,18 @@ if st.session_state.workflow_mode:
                 st.metric("Generated", datetime.fromisoformat(generated_at).strftime("%Y-%m-%d %H:%M"))
             
             # Report actions
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
-                # Download button
+                # Download button - use improved version if available
+                download_report = report
+                download_label = "📥 Download Report (Markdown)"
+                if 'manual_improvement_applied' in st.session_state:
+                    download_report = st.session_state.manual_improvement_applied['improved_report']
+                    download_label = "📥 Download Improved Report"
+                
                 st.download_button(
-                    label="📥 Download Report (Markdown)",
-                    data=report,
+                    label=download_label,
+                    data=download_report,
                     file_name=f"research_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
                     mime="text/markdown"
                 )
@@ -771,10 +802,94 @@ if st.session_state.workflow_mode:
                     st.info("Select all text below and copy")
             
             with col3:
+                # Manual QA Review button
+                if st.button("🔍 QA Review"):
+                    with st.spinner("Running manual QA review..."):
+                        try:
+                            # Get the enhanced search engine and run QA on the report
+                            from utils.intelligent_search_enhanced import get_enhanced_search_engine
+                            search_engine = get_enhanced_search_engine()
+                            
+                            # Configure QA system - use comprehensive by default for manual review
+                            search_engine.configure_qa_system("comprehensive")
+                            
+                            # Verify QA system is available
+                            if not hasattr(search_engine, 'qa_system') or search_engine.qa_system is None:
+                                st.error("❌ QA system is not available. Please check the configuration.")
+                            else:
+                                # Extract sources from workflow state if available
+                                workflow_state = st.session_state.get('workflow_state', {})
+                                sources = []
+                            
+                                # Try to reconstruct sources from workflow data
+                                if 'data' in workflow_state:
+                                    data = workflow_state['data']
+                                    if isinstance(data, list):
+                                        # Document research stage format
+                                        for result in data:
+                                            if 'research' in result and 'analysis' in result['research']:
+                                                analysis = result['research']['analysis']
+                                                if 'document_analyses' in analysis:
+                                                    for doc_analysis in analysis['document_analyses'][:5]:
+                                                        sources.append({
+                                                            'title': doc_analysis.get('document_title', 'Research Document'),
+                                                            'content': {'body': doc_analysis.get('content_excerpt', '')},
+                                                            'author': 'Research Analysis',
+                                                            'category': 'Research'
+                                                        })
+                                    elif isinstance(data, dict) and 'report' in data:
+                                        # Report generation stage - create generic source
+                                        sources = [{
+                                            'title': 'Research Report Analysis',
+                                            'content': {'body': report[:1000]},  # Use beginning of report
+                                            'author': 'Workflow System',
+                                            'category': 'Research'
+                                        }]
+                                
+                                # If no sources, create a default one
+                                if not sources:
+                                    sources = [{
+                                        'title': 'Manual QA Review',
+                                        'content': {'body': 'Manual quality assessment review'},
+                                        'author': 'User Request',
+                                        'category': 'Quality Assurance'
+                                    }]
+                                
+                                # Use current report (may be improved version)
+                                current_report = report
+                                if 'manual_improvement_applied' in st.session_state:
+                                    current_report = st.session_state.manual_improvement_applied['improved_report']
+                                
+                                # Run QA on the current report
+                                qa_results = search_engine.qa_system.run_report_qa(
+                                    current_report, 
+                                    sources, 
+                                    "Manual quality assessment of research report"
+                                )
+                                
+                                # Store QA results in session state for display
+                                st.session_state.manual_qa_results = qa_results
+                                st.session_state.manual_qa_timestamp = datetime.now()
+                                
+                                st.success("✅ Manual QA review completed!")
+                                st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"❌ QA review failed: {str(e)}")
+                            print(f"Manual QA error: {e}")
+            
+            with col4:
                 # Start new research
                 if st.button("🔄 New Research"):
                     st.session_state.workflow_state = None
                     st.session_state.clarification_responses = {}
+                    # Clear any manual QA results and improvements
+                    if 'manual_qa_results' in st.session_state:
+                        del st.session_state.manual_qa_results
+                    if 'manual_qa_timestamp' in st.session_state:
+                        del st.session_state.manual_qa_timestamp
+                    if 'manual_improvement_applied' in st.session_state:
+                        del st.session_state.manual_improvement_applied
                     workflow_orchestrator.current_stage = 'inquiry_clarification'
                     # Reset workflow persistence to force new session creation
                     workflow_persistence.current_session_dir = None
@@ -805,7 +920,255 @@ if st.session_state.workflow_mode:
             )
             
             with st.container():
-                st.markdown(report)
+                # Display improved report if available, otherwise original
+                display_report = report
+                if 'manual_improvement_applied' in st.session_state:
+                    display_report = st.session_state.manual_improvement_applied['improved_report']
+                    st.info("📝 Showing improved version of the report (improvements have been applied)")
+                
+                st.markdown(display_report)
+            
+            # Display manual QA results if available
+            if 'manual_qa_results' in st.session_state:
+                st.divider()
+                st.markdown("## 🔍 Manual QA Review Results")
+                
+                qa_results = st.session_state.manual_qa_results
+                qa_timestamp = st.session_state.get('manual_qa_timestamp', datetime.now())
+                
+                st.caption(f"📅 QA Review completed: {qa_timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+                
+                # QA metrics in expandable section
+                with st.expander("📊 Quality Assessment Metrics", expanded=True):
+                    # Overall metrics
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        overall_score = qa_results.get('overall_score', 0) * 100
+                        st.metric("Overall Quality", f"{overall_score:.0f}%")
+                    with col2:
+                        qa_confidence = qa_results.get('confidence', 0) * 100
+                        st.metric("QA Confidence", f"{qa_confidence:.0f}%")
+                    with col3:
+                        trust_score = qa_results.get('trust_score', 0) * 100
+                        st.metric("Trust Score", f"{trust_score:.0f}%")
+                    with col4:
+                        total_issues = len(qa_results.get('inaccurate_or_confusing_sections', []))
+                        st.metric("Issues Found", total_issues)
+                    
+                    # Show trust/fix decision information
+                    if qa_results.get('fix_decision_reasoning'):
+                        st.markdown("**QA Decision Analysis:**")
+                        
+                        # Display fix recommendation status
+                        if qa_results.get('auto_fix_recommended'):
+                            st.success("✅ **Auto-fix Recommended** - High confidence fixes could be applied automatically")
+                        elif qa_results.get('suggest_review'):
+                            st.info("⚠️ **Suggest Review** - Moderate confidence, suitable for review")
+                        elif qa_results.get('manual_review_required'):
+                            st.warning("🔍 **Manual Review Required** - Complex issues need human attention")
+                        
+                        # Show reasoning
+                        for reason in qa_results['fix_decision_reasoning']:
+                            st.write(f"• {reason}")
+                    
+                    # Layer-specific scores
+                    if qa_results.get('layer_scores'):
+                        st.markdown("**Quality by Category:**")
+                        layer_cols = st.columns(len(qa_results['layer_scores']))
+                        for i, (layer, layer_data) in enumerate(qa_results['layer_scores'].items()):
+                            with layer_cols[i]:
+                                score = layer_data.get('score', 0) * 100
+                                st.metric(layer.title(), f"{score:.0f}%")
+                
+                # Issues and recommendations
+                if qa_results.get('inaccurate_or_confusing_sections'):
+                    with st.expander("⚠️ Issues & Recommendations", expanded=False):
+                        for i, issue in enumerate(qa_results['inaccurate_or_confusing_sections']):
+                            st.markdown(f"**Issue {i+1}: {issue.get('section_title', 'General')}**")
+                            st.write(f"**Problem:** {issue.get('issue', 'Not specified')}")
+                            if issue.get('suggested_fix'):
+                                st.write(f"**Suggested Fix:** {issue.get('suggested_fix')}")
+                            st.divider()
+                
+                # Layer-specific details
+                if qa_results.get('layer_scores'):
+                    with st.expander("📋 Detailed Layer Analysis", expanded=False):
+                        for layer, layer_data in qa_results['layer_scores'].items():
+                            st.markdown(f"### {layer.title()} Analysis")
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                score = layer_data.get('score', 0) * 100
+                                st.metric("Score", f"{score:.0f}%")
+                            with col2:
+                                issues_count = len(layer_data.get('issues', []))
+                                st.metric("Issues", issues_count)
+                            
+                            if layer_data.get('issues'):
+                                st.markdown("**Issues:**")
+                                for issue in layer_data['issues']:
+                                    st.write(f"• {issue}")
+                            
+                            if layer_data.get('strengths'):
+                                st.markdown("**Strengths:**")
+                                for strength in layer_data['strengths']:
+                                    st.write(f"• {strength}")
+                            
+                            st.divider()
+                
+                # Action buttons for QA results
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    # Apply improvements if QA suggests fixes OR manual override
+                    has_issues = qa_results.get('inaccurate_or_confusing_sections', [])
+                    recommended_fixes = qa_results.get('auto_fix_recommended') or qa_results.get('suggest_review')
+                    
+                    improvement_clicked = False
+                    
+                    if recommended_fixes and has_issues:
+                        improvement_clicked = st.button("🔧 Apply Improvements", type="primary")
+                    elif has_issues:  # Manual override for low-trust scenarios
+                        improvement_clicked = st.button("⚠️ Force Apply Improvements", type="secondary", 
+                                   help="Apply improvements despite low trust score - use with caution")
+                    else:
+                        st.info("No improvements recommended")
+                    
+                    if improvement_clicked:
+                        with st.spinner("Applying QA improvements to report..."):
+                            try:
+                                from utils.intelligent_search_enhanced import get_enhanced_search_engine
+                                search_engine = get_enhanced_search_engine()
+                                
+                                # Verify improvement pipeline is available
+                                if not hasattr(search_engine, 'improvement_pipeline') or search_engine.improvement_pipeline is None:
+                                    st.error("❌ Improvement pipeline is not available. Please check the configuration.")
+                                else:
+                                    # Use improvement pipeline to fix the report
+                                    sources = [{"title": "Manual QA Review", "content": {"body": "Manual improvement"}, "author": "User", "category": "QA"}]
+                                    
+                                    # Use current report (may already be improved)
+                                    current_report = report
+                                    if 'manual_improvement_applied' in st.session_state:
+                                        current_report = st.session_state.manual_improvement_applied['improved_report']
+                                    
+                                    improvement_result = search_engine.improvement_pipeline.improve_report(
+                                        current_report, sources, "Manual QA improvement request"
+                                    )
+                                    
+                                    if improvement_result.get('status') == 'improved':
+                                        # Update the workflow state with improved report (safely)
+                                        try:
+                                            if ('workflow_state' in st.session_state and 
+                                                st.session_state.workflow_state is not None and
+                                                'data' in st.session_state.workflow_state):
+                                                if isinstance(st.session_state.workflow_state['data'], dict):
+                                                    st.session_state.workflow_state['data']['report'] = improvement_result['improved_report']
+                                        except Exception as e:
+                                            print(f"Warning: Could not update workflow state: {e}")
+                                        
+                                        # Store improvement info
+                                        st.session_state.manual_improvement_applied = {
+                                            'original_report': improvement_result['original_report'],
+                                            'improved_report': improvement_result['improved_report'],
+                                            'improvements_made': improvement_result.get('improvements_made', []),
+                                            'score_improvement': improvement_result.get('score_improvement', 0),
+                                            'timestamp': datetime.now()
+                                        }
+                                        
+                                        st.success("✅ Improvements applied successfully!")
+                                        st.rerun()
+                                    else:
+                                        st.warning("⚠️ No improvements were applied. The report may already be of sufficient quality.")
+                                        
+                            except Exception as e:
+                                st.error(f"❌ Failed to apply improvements: {str(e)}")
+                    else:
+                        st.info("No improvements recommended")
+                
+                with col2:
+                    if st.button("🗑️ Clear QA Results", type="secondary"):
+                        del st.session_state.manual_qa_results
+                        if 'manual_qa_timestamp' in st.session_state:
+                            del st.session_state.manual_qa_timestamp
+                        if 'manual_improvement_applied' in st.session_state:
+                            del st.session_state.manual_improvement_applied
+                        st.rerun()
+                
+                with col3:
+                    # Option to run improved QA with different config
+                    qa_config_options = ["basic", "comprehensive", "trust_focused", "suggest_only"]
+                    selected_config = st.selectbox(
+                        "Re-run with config:",
+                        qa_config_options,
+                        index=1,  # Default to comprehensive
+                        key="manual_qa_config"
+                    )
+                
+                with col4:
+                    if st.button("🔄 Re-run QA", type="primary"):
+                        with st.spinner(f"Re-running QA with {selected_config} configuration..."):
+                            try:
+                                from utils.intelligent_search_enhanced import get_enhanced_search_engine
+                                search_engine = get_enhanced_search_engine()
+                                search_engine.configure_qa_system(selected_config)
+                                
+                                # Verify QA system is available
+                                if not hasattr(search_engine, 'qa_system') or search_engine.qa_system is None:
+                                    st.error("❌ QA system is not available. Please check the configuration.")
+                                else:
+                                    
+                                    # Use current report (may be improved version)
+                                    current_report = report
+                                    if 'manual_improvement_applied' in st.session_state:
+                                        current_report = st.session_state.manual_improvement_applied['improved_report']
+                                    
+                                    sources = [{"title": "Manual QA Review", "content": {"body": "Re-run assessment"}, "author": "User", "category": "QA"}]
+                                    
+                                    qa_results = search_engine.qa_system.run_report_qa(
+                                        current_report, sources, f"Manual QA re-run with {selected_config} config"
+                                    )
+                                    
+                                    st.session_state.manual_qa_results = qa_results
+                                    st.session_state.manual_qa_timestamp = datetime.now()
+                                    st.success(f"✅ QA re-run completed with {selected_config} configuration!")
+                                    st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ QA re-run failed: {str(e)}")
+                
+                # Show improvement history if available
+                if 'manual_improvement_applied' in st.session_state:
+                    st.divider()
+                    improvement_info = st.session_state.manual_improvement_applied
+                    
+                    with st.expander("🔧 Applied Improvements", expanded=False):
+                        st.caption(f"📅 Improvements applied: {improvement_info['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
+                        
+                        if improvement_info.get('score_improvement', 0) > 0:
+                            st.success(f"📈 Quality Score Improved by: {improvement_info['score_improvement']:.2f} points")
+                        
+                        if improvement_info.get('improvements_made'):
+                            st.markdown("**Improvements Made:**")
+                            for improvement in improvement_info['improvements_made']:
+                                st.markdown(f"**{improvement['section']}**")
+                                st.write("Issues addressed:")
+                                for issue in improvement['issues_addressed']:
+                                    st.write(f"• {issue}")
+                        
+                        # Option to compare before/after
+                        if st.checkbox("Show Before/After Comparison"):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.markdown("**Original Report:**")
+                                original_preview = improvement_info.get('original_report', '')[:1000]
+                                if len(improvement_info.get('original_report', '')) > 1000:
+                                    original_preview += "..."
+                                st.text_area("", value=original_preview, height=200, disabled=True, key="original_compare")
+                            with col2:
+                                st.markdown("**Improved Report:**")
+                                improved_preview = improvement_info.get('improved_report', '')[:1000]
+                                if len(improvement_info.get('improved_report', '')) > 1000:
+                                    improved_preview += "..."
+                                st.text_area("", value=improved_preview, height=200, disabled=True, key="improved_compare")
 
 else:
     # Quick Search Interface (existing functionality)
@@ -836,10 +1199,16 @@ else:
             # Parse query intent for additional info
             query_intent = search_engine.parse_query_intent(query)
             
-            # Generate synthesized answer if results found
+            # Generate synthesized answer with QA if results found
             answer_data = None
             if results_list:
-                answer_data = search_engine.synthesize_answer(query, results_list)
+                # Check if QA is enabled in settings
+                enable_qa = st.session_state.get('enable_qa_improvement', True)
+                answer_data = search_engine.synthesize_answer_with_qa(
+                    query, results_list, 
+                    use_structured_report=True,
+                    enable_qa_improvement=enable_qa
+                )
             
             # Format results in expected structure
             results = {
@@ -913,6 +1282,76 @@ else:
             with col2:
                 confidence = results.get('answer_confidence', 0) * 100
                 st.metric("Confidence", f"{confidence:.0f}%")
+            
+            # Display QA feedback if available
+            if st.session_state.get('enable_qa_improvement') and 'qa_results' in results:
+                with st.expander("🔍 Quality Assessment & Improvements", expanded=False):
+                    qa_results = results['qa_results']
+                    
+                    # Overall QA metrics
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        overall_score = qa_results.get('overall_score', 0) * 100
+                        st.metric("Overall Quality", f"{overall_score:.0f}%")
+                    with col2:
+                        qa_confidence = qa_results.get('confidence', 0) * 100
+                        st.metric("QA Confidence", f"{qa_confidence:.0f}%")
+                    with col3:
+                        trust_score = qa_results.get('trust_score', 0) * 100
+                        st.metric("Trust Score", f"{trust_score:.0f}%")
+                    with col4:
+                        improvements_made = len(results.get('improvements_made', []))
+                        st.metric("Improvements Made", improvements_made)
+                    
+                    # Show trust/fix decision information if available
+                    if qa_results.get('fix_decision_reasoning'):
+                        st.markdown("**QA Decision Analysis:**")
+                        
+                        # Display fix recommendation status
+                        if qa_results.get('auto_fix_recommended'):
+                            st.success("✅ **Auto-fix Recommended** - High confidence fixes applied automatically")
+                        elif qa_results.get('suggest_review'):
+                            st.info("⚠️ **Suggest Review** - Moderate confidence, suitable for review")
+                        elif qa_results.get('manual_review_required'):
+                            st.warning("🔍 **Manual Review Required** - Complex issues need human attention")
+                        
+                        # Show reasoning
+                        with st.expander("Decision Reasoning", expanded=False):
+                            for reason in qa_results['fix_decision_reasoning']:
+                                st.write(f"• {reason}")
+                    
+                    # Layer scores
+                    if qa_results.get('layer_scores'):
+                        st.markdown("**Quality by Category:**")
+                        layer_cols = st.columns(len(qa_results['layer_scores']))
+                        for i, (layer, layer_data) in enumerate(qa_results['layer_scores'].items()):
+                            with layer_cols[i]:
+                                score = layer_data.get('score', 0) * 100
+                                st.metric(layer.title(), f"{score:.0f}%")
+                    
+                    # Show improvements made
+                    if results.get('improvements_made'):
+                        st.markdown("**Improvements Applied:**")
+                        for improvement in results['improvements_made']:
+                            with st.container():
+                                st.markdown(f"**{improvement['section']}**")
+                                st.write("Issues addressed:")
+                                for issue in improvement['issues_addressed']:
+                                    st.write(f"• {issue}")
+                    
+                    # Show original vs improved toggle
+                    if results.get('original_answer') and results.get('qa_status') == 'improved':
+                        show_comparison = st.checkbox("Show Before/After Comparison")
+                        if show_comparison:
+                            st.markdown("**Original Answer:**")
+                            st.text_area("", value=results['original_answer'], height=200, disabled=True)
+                            st.markdown("**Improved Answer:**")
+                            st.text_area("", value=results['answer'], height=200, disabled=True)
+                            
+                            score_improvement = results.get('score_improvement', 0) * 100
+                            if score_improvement > 0:
+                                st.success(f"Quality improved by {score_improvement:.1f} points")
+            
             st.divider()
         
         # Display results

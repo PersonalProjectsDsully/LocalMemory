@@ -143,19 +143,54 @@ def _call_openai_api(prompt: str, api_key: str, model_name: str, operation_name:
     try:
         print(f"Sending request to OpenAI ({model_name}) for {operation_name}...")
         
-        client = OpenAI(api_key=api_key)
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that provides concise, accurate summaries and follows formatting instructions precisely."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,  # Consider making this configurable
-            max_tokens=1000   # Consider making this configurable
-        )
+        # Create OpenAI client with explicit parameters to avoid environment issues
+        try:
+            # Try creating client with minimal parameters
+            client = OpenAI(api_key=api_key)
+        except TypeError as e:
+            if "proxies" in str(e):
+                # If there's a proxies error, try to work around it
+                print("Working around proxies parameter issue...")
+                # Clear any environment variables that might be causing issues
+                import os
+                for key in list(os.environ.keys()):
+                    if 'PROXY' in key.upper():
+                        print(f"Removing environment variable: {key}")
+                        del os.environ[key]
+                
+                # Try again without proxy environment variables
+                try:
+                    client = OpenAI(api_key=api_key)
+                except:
+                    # Last resort - use requests directly
+                    print("Using direct API calls as fallback...")
+                    return _call_openai_api_direct(prompt, api_key, model_name, operation_name)
+            else:
+                raise e
         
-        llm_response_text = response.choices[0].message.content.strip()
-        llm_response_text = strip_thinking_tags(llm_response_text)  # Also strip for OpenAI
+        # Check if this is a reasoning model (o1, o3)
+        if model_name.startswith(('o1', 'o3')):
+            # Use responses API for reasoning models
+            response = client.responses.create(
+                model=model_name,
+                input=prompt,
+                reasoning={"effort": "medium"}  # Can be made configurable
+            )
+            llm_response_text = response.choices[0].text.strip() if hasattr(response.choices[0], 'text') else str(response)
+        else:
+            # Use chat completions API for regular models
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that provides concise, accurate summaries and follows formatting instructions precisely."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,  # Consider making this configurable
+                max_tokens=1000   # Consider making this configurable
+            )
+            llm_response_text = response.choices[0].message.content.strip()
+        
+        llm_response_text = strip_thinking_tags(llm_response_text)  # Strip thinking tags
         
         if not llm_response_text and prompt:
             print(f"OpenAI returned an empty response for {operation_name} with a non-empty prompt.")
@@ -165,7 +200,70 @@ def _call_openai_api(prompt: str, api_key: str, model_name: str, operation_name:
         return llm_response_text
     except Exception as e:
         print(f"An error occurred during OpenAI {operation_name}: {e}")
-        st.error(f"OpenAI API error: {e} ({operation_name})")
+        # More specific error messages
+        if "api_key" in str(e).lower():
+            st.error(f"OpenAI API key error: Please check your API key is valid ({operation_name})")
+        elif "model" in str(e).lower():
+            st.error(f"OpenAI model error: Model '{model_name}' may not be available ({operation_name})")
+        elif "rate" in str(e).lower():
+            st.error(f"OpenAI rate limit error: Please wait and try again ({operation_name})")
+        else:
+            st.error(f"OpenAI API error: {e} ({operation_name})")
+        return None
+
+def _call_openai_api_direct(prompt: str, api_key: str, model_name: str, operation_name: str) -> Optional[str]:
+    """Direct API call to OpenAI using requests library as a fallback."""
+    try:
+        import requests
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # Determine which API to use based on model
+        if model_name.startswith(('o1', 'o3')):
+            # Use responses endpoint for reasoning models
+            url = "https://api.openai.com/v1/responses"
+            payload = {
+                "model": model_name,
+                "input": prompt,
+                "reasoning": {"effort": "medium"}
+            }
+        else:
+            # Use chat completions endpoint for regular models
+            url = "https://api.openai.com/v1/chat/completions"
+            payload = {
+                "model": model_name,
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant that provides concise, accurate summaries and follows formatting instructions precisely."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.7,
+                "max_tokens": 1000
+            }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # Extract text based on response type
+        if model_name.startswith(('o1', 'o3')):
+            llm_response_text = data.get("choices", [{}])[0].get("text", "").strip()
+        else:
+            llm_response_text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        
+        llm_response_text = strip_thinking_tags(llm_response_text)
+        
+        if llm_response_text:
+            print(f"OpenAI {operation_name} successful (direct API).")
+        
+        return llm_response_text
+        
+    except Exception as e:
+        print(f"Direct OpenAI API call failed: {e}")
+        st.error(f"Direct OpenAI API error: {e}")
         return None
 
 def _call_lmstudio_api(prompt: str, api_url: str, model_name: str, operation_name: str) -> Optional[str]:
@@ -174,7 +272,7 @@ def _call_lmstudio_api(prompt: str, api_url: str, model_name: str, operation_nam
         print(f"Sending request to LM Studio ({model_name}) for {operation_name}...")
         
         # LM Studio uses OpenAI-compatible endpoint for chat completions
-        chat_url = f"{api_url}/api/v0/chat/completions"
+        chat_url = f"{api_url}/v1/chat/completions"
         
         headers = {
             "Content-Type": "application/json"
@@ -519,8 +617,81 @@ Please format your response in markdown."""
 
     return _call_llm_api(prompt, "YouTube video summarization")
 
-def get_available_openai_models() -> List[str]:
-    """Return a list of commonly used OpenAI models."""
+def get_available_openai_models(api_key: Optional[str] = None) -> List[str]:
+    """Fetch available OpenAI models dynamically from the API."""
+    # If no API key provided, try to get from session state
+    if not api_key:
+        api_key = st.session_state.get('openai_api_key', '')
+    
+    if not api_key:
+        # Return default list if no API key
+        return [
+            "gpt-4o",
+            "gpt-4-turbo",
+            "gpt-4",
+            "gpt-3.5-turbo",
+            "o1-preview",
+            "o1-mini",
+        ]
+    
+    try:
+        # Use requests to directly call the API and bypass the proxy issue
+        import requests
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # Call the models endpoint directly
+        response = requests.get("https://api.openai.com/v1/models", headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        model_ids = []
+        
+        # Extract model IDs from the response
+        for model in data.get('data', []):
+            model_id = model.get('id', '')
+            # Filter for models we can use for chat/completions
+            if any(prefix in model_id for prefix in ['gpt', 'o1', 'o3', 'davinci', 'curie', 'babbage', 'ada']):
+                # Skip embedding models and other non-chat models
+                if not any(skip in model_id for skip in ['embedding', 'whisper', 'tts', 'dall-e', 'search', 'similarity', 'edit', 'insert']):
+                    model_ids.append(model_id)
+        
+        # Sort models with preferred ones first
+        preferred_order = ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo', 'o1', 'o3']
+        
+        def sort_key(model_id):
+            for i, prefix in enumerate(preferred_order):
+                if model_id.startswith(prefix):
+                    return (i, model_id)
+            return (len(preferred_order), model_id)
+        
+        model_ids.sort(key=sort_key)
+        
+        # If no models found, return defaults
+        if not model_ids:
+            return [
+                "gpt-4o",
+                "gpt-4-turbo",
+                "gpt-4",
+                "gpt-3.5-turbo",
+            ]
+        
+        print(f"Successfully fetched {len(model_ids)} OpenAI models")
+        return model_ids
+        
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 401:
+            print("Invalid OpenAI API key")
+            st.error("Invalid OpenAI API key. Please check your key.")
+        else:
+            print(f"HTTP error fetching OpenAI models: {e}")
+    except Exception as e:
+        print(f"Error fetching OpenAI models: {e}")
+    
+    # Return default list on error
     return [
         "gpt-4o",
         "gpt-4-turbo",
@@ -528,74 +699,63 @@ def get_available_openai_models() -> List[str]:
         "gpt-3.5-turbo",
     ]
 
-def get_available_lmstudio_models(api_url: str = DEFAULT_LMSTUDIO_API_URL) -> Tuple[List[str], Dict[str, str]]:
+def get_available_lmstudio_models(api_url: str = DEFAULT_LMSTUDIO_API_URL) -> List[str]:
     """
-    Fetch available models from LM Studio API with detailed information.
+    Fetch available models from LM Studio API.
     
     Returns:
-        tuple: (model_names, model_display_info)
+        List of model names
     """
     model_names: List[str] = []
-    model_display_info: Dict[str, str] = {}
     
-    models_url = f"{api_url}/api/v0/models"
+    models_url = f"{api_url}/v1/models"
     
     try:
         response = requests.get(models_url, timeout=5)
         if response.status_code == 200:
             data = response.json()
-            models_data = data.get("data", [])
             
-            for model in models_data:
-                model_id = model.get("id")
-                if not model_id:
-                    continue
-                
-                # Skip embedding models
-                model_type = model.get("type", "")
-                if model_type == "embeddings":
-                    continue
-                
-                # Get model info
-                arch = model.get("arch", "")
-                quantization = model.get("quantization", "")
-                state = model.get("state", "not-loaded")
-                max_context = model.get("max_context_length", 0)
-                
-                model_names.append(model_id)
-                
-                # Build display info
-                display_parts = []
-                if arch:
-                    display_parts.append(f"{arch}")
-                if quantization:
-                    display_parts.append(f"[{quantization}]")
-                if state == "loaded":
-                    display_parts.append("✓ Loaded")
-                if max_context:
-                    display_parts.append(f"Context: {max_context}")
-                
-                if display_parts:
-                    model_display_info[model_id] = " • ".join(display_parts)
+            # Handle different response formats from LM Studio
+            if "data" in data:
+                # Standard OpenAI-compatible format
+                models_data = data["data"]
+                for model in models_data:
+                    model_id = model.get("id")
+                    if model_id:
+                        # Skip embedding models
+                        model_type = model.get("type", "")
+                        if model_type != "embeddings" and "embed" not in model_id.lower():
+                            model_names.append(model_id)
+            elif isinstance(data, list):
+                # Direct array format (what LM Studio is returning)
+                for model in data:
+                    if isinstance(model, str):
+                        # Simple string array
+                        if "embed" not in model.lower():  # Skip embedding models
+                            model_names.append(model)
+                    elif isinstance(model, dict) and "id" in model:
+                        # Array of model objects
+                        model_id = model["id"]
+                        model_type = model.get("type", "")
+                        if model_type != "embeddings" and "embed" not in model_id.lower():
+                            model_names.append(model_id)
             
-            # Sort models: loaded first, then by name
-            model_names.sort(key=lambda x: (
-                0 if any(m.get("id") == x and m.get("state") == "loaded" for m in models_data) else 1,
-                x.lower()
-            ))
+            # Remove duplicates and sort
+            model_names = list(set(model_names))
+            model_names.sort()
             
             if not model_names:
                 # Return default if no models found
                 default_models = ["granite-3.0-2b-instruct", "meta-llama-3.1-8b-instruct"]
-                return (default_models, {m: "Default model" for m in default_models})
+                return default_models
                 
-            return model_names, model_display_info
+            return model_names
     except Exception as e:
         print(f"Error connecting to LM Studio API: {e}")
     
     # Fallback models
     default_models = ["granite-3.0-2b-instruct", "meta-llama-3.1-8b-instruct"]
-    return (default_models, {m: "Default model" for m in default_models})
+    return default_models
 
 def get_available_ollama_models(api_url: str = DEFAULT_LLM_API_URL) -> Tuple[List[str], Dict[str, str]]:
     """

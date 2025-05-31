@@ -8,7 +8,7 @@ import os
 import sys
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.llm_utils import summarize_youtube_transcript, recommend_category_and_tags, test_llm_connection, get_available_ollama_models, get_available_openai_models, OPENAI_AVAILABLE, extract_content_intelligence
+from utils.llm_utils import summarize_youtube_transcript, recommend_category_and_tags, test_llm_connection, get_available_ollama_models, get_available_openai_models, get_available_lmstudio_models, OPENAI_AVAILABLE, extract_content_intelligence
 from utils.session_state_manager import initialize_session_state, auto_save_settings
 from utils.youtube_utils import extract_video_id, fetch_video_info
 from utils.youtube_channel_utils import extract_channel_id, fetch_channel_videos_basic, fetch_channel_videos_with_api, fetch_channel_videos_selenium
@@ -1333,18 +1333,35 @@ confidence_score: {intelligence.get('confidence_score', 0.5)}
 # Sidebar - LLM Settings
 with st.sidebar:
     st.subheader("⚙️ LLM Settings")
+    st.info("💡 Settings are synced with global Settings page")
     
-    # LLM Provider selection
+    # LLM Provider selection - sync with global settings
     def on_provider_change():
-        st.session_state.llm_provider = "openai" if st.session_state.llm_provider_youtube == "OpenAI" else "ollama"
+        provider_map = {
+            "Ollama (Local)": "ollama",
+            "OpenAI": "openai", 
+            "LM Studio (Local)": "lmstudio"
+        }
+        st.session_state.llm_provider = provider_map.get(st.session_state.llm_provider_youtube, "ollama")
         auto_save_settings()
     
+    # Get current provider from global settings
+    current_provider = st.session_state.get('llm_provider', 'ollama')
+    provider_display_map = {
+        "ollama": "Ollama (Local)",
+        "openai": "OpenAI",
+        "lmstudio": "LM Studio (Local)"
+    }
+    current_display = provider_display_map.get(current_provider, "Ollama (Local)")
+    
+    provider_options = ["Ollama (Local)", "OpenAI", "LM Studio (Local)"]
     provider = st.selectbox(
         "LLM Provider",
-        ["Ollama (Local)", "OpenAI"],
-        index=0 if st.session_state.get('llm_provider', 'ollama') == 'ollama' else 1,
+        provider_options,
+        index=provider_options.index(current_display),
         key="llm_provider_youtube",
-        on_change=on_provider_change
+        on_change=on_provider_change,
+        help="Synced with global settings - choose between local Ollama, cloud OpenAI, or local LM Studio"
     )
     
     if provider == "OpenAI":
@@ -1361,7 +1378,7 @@ with st.sidebar:
             on_change=on_api_key_change
         )
         
-        model_options = get_available_openai_models()
+        model_options = get_available_openai_models(st.session_state.get('openai_api_key'))
         if model_options:
             current_model = st.session_state.get('openai_model', 'gpt-3.5-turbo')
             def on_openai_model_change():
@@ -1375,7 +1392,38 @@ with st.sidebar:
                 key="openai_model_youtube",
                 on_change=on_openai_model_change
             )
-    else:
+    elif provider == "LM Studio (Local)":
+        # LM Studio settings - sync with global settings
+        def on_lmstudio_url_change():
+            st.session_state.lmstudio_api_url = st.session_state.lmstudio_api_url_youtube
+            auto_save_settings()
+        
+        api_url = st.text_input(
+            "LM Studio API URL",
+            value=st.session_state.get('lmstudio_api_url', 'http://localhost:1234'),
+            key="lmstudio_api_url_youtube",
+            help="URL for your local LM Studio instance (default: http://localhost:1234)",
+            on_change=on_lmstudio_url_change
+        )
+        
+        models = get_available_lmstudio_models(api_url)
+        if models:
+            current_model = st.session_state.get('lmstudio_model', '')
+            def on_lmstudio_model_change():
+                st.session_state.lmstudio_model = st.session_state.lmstudio_model_youtube
+                auto_save_settings()
+            
+            selected_model = st.selectbox(
+                "Model",
+                models,
+                index=models.index(current_model) if current_model in models else 0,
+                key="lmstudio_model_youtube",
+                on_change=on_lmstudio_model_change
+            )
+        else:
+            st.warning("No LM Studio models found. Is LM Studio server running? (lms server start)")
+    
+    else:  # Ollama (Local)
         # Ollama settings
         def on_ollama_url_change():
             st.session_state.ollama_api_url = st.session_state.ollama_api_url_youtube

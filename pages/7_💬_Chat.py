@@ -14,7 +14,7 @@ st.title("💬 AI Chat Assistant")
 
 # Check if required dependencies are available
 try:
-    from utils.llm_utils import _call_llm_api, test_llm_connection
+    from utils.llm_utils import _call_llm_api, test_llm_connection, get_available_ollama_models, get_available_openai_models, get_available_lmstudio_models
     from utils.session_state_manager import initialize_session_state, auto_save_settings
     
     # Initialize session state
@@ -25,11 +25,23 @@ try:
     # Check LLM availability
     with st.sidebar:
         st.subheader("⚙️ LLM Settings")
+        st.info("💡 Settings are synced with global Settings page")
         
+        # Get current provider from global settings
+        current_provider = st.session_state.get('llm_provider', 'ollama')
+        provider_display_map = {
+            "ollama": "Ollama (Local)",
+            "openai": "OpenAI",
+            "lmstudio": "LM Studio (Local)"
+        }
+        current_display = provider_display_map.get(current_provider, "Ollama (Local)")
+        
+        provider_options = ["Ollama (Local)", "OpenAI", "LM Studio (Local)"]
         provider = st.selectbox(
             "LLM Provider",
-            ["Ollama (Local)", "OpenAI"],
-            index=0 if st.session_state.get('llm_provider', 'ollama') == 'ollama' else 1
+            provider_options,
+            index=provider_options.index(current_display),
+            help="Synced with global settings - choose between local Ollama, cloud OpenAI, or local LM Studio"
         )
         
         if provider == "OpenAI":
@@ -39,7 +51,13 @@ try:
                 value=st.session_state.get('openai_api_key', ''),
                 help="Enter your OpenAI API key"
             )
-        else:
+        elif provider == "LM Studio (Local)":
+            api_url = st.text_input(
+                "LM Studio API URL",
+                value=st.session_state.get('lmstudio_api_url', 'http://localhost:1234'),
+                help="URL for your local LM Studio instance"
+            )
+        else:  # Ollama (Local)
             api_url = st.text_input(
                 "Ollama API URL",
                 value=st.session_state.get('ollama_api_url', 'http://localhost:11434/api/generate')

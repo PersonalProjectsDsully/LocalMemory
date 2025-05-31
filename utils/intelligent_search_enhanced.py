@@ -8,6 +8,7 @@ from datetime import datetime
 from collections import defaultdict, Counter
 import streamlit as st
 from .llm_utils import _call_llm_api
+from .qa_improvement_system import ReportQASystem, ReportImprovementPipeline, QA_CONFIGS
 
 class EnhancedIntelligentSearchEngine:
     """
@@ -20,6 +21,15 @@ class EnhancedIntelligentSearchEngine:
         self.entity_index = {}
         self.concept_index = {}
         self.relationship_map = {}
+        
+        # Inverted index for fast search
+        self.inverted_index = {}  # {term: {doc_id: frequency}}
+        self.document_lengths = {}  # {doc_id: word_count}
+        self.total_documents = 0
+        
+        # QA and improvement system
+        self.qa_system = ReportQASystem(QA_CONFIGS.get("comprehensive"))
+        self.improvement_pipeline = ReportImprovementPipeline(self.qa_system)
         
         # Initialize synonym mapping for common terms
         self.synonym_map = {
@@ -118,9 +128,15 @@ class EnhancedIntelligentSearchEngine:
                 
                 indexed_files += 1
                 
+                # Build inverted index for this document
+                self._update_inverted_index(file_key, body, frontmatter.get('title', ''))
+                
             except Exception as e:
                 print(f"Error indexing {md_file}: {e}")
                 continue
+        
+        # Update total document count
+        self.total_documents = len(self.content_index)
         
         return {
             "indexed": indexed_files,
@@ -141,6 +157,124 @@ class EnhancedIntelligentSearchEngine:
                     pass
         
         return {}, content
+    
+    def _parse_markdown_structure(self, content: str) -> Dict[str, Any]:
+        """
+        Parse markdown content to identify structural elements like headers, summary, key points
+        """
+        structure = {
+            'headers': [],
+            'summary': '',
+            'key_points': [],
+            'sections': {}
+        }
+        
+        # Handle null or empty content
+        if not content:
+            return structure
+            
+        lines = content.split('\n')
+        current_section = None
+        section_content = []
+        in_summary = False
+        in_key_points = False
+        
+        for line in lines:
+            # Check for headers
+            if line.startswith('#'):
+                # Save previous section if exists
+                if current_section and section_content:
+                    structure['sections'][current_section] = '\n'.join(section_content).strip()
+                    section_content = []
+                
+                # Extract header level and text
+                header_match = re.match(r'^(#+)\s+(.+)$', line)
+                if header_match:
+                    level = len(header_match.group(1))
+                    header_text = header_match.group(2).strip()
+                    structure['headers'].append({
+                        'level': level,
+                        'text': header_text
+                    })
+                    current_section = header_text
+                    
+                    # Check for special sections
+                    header_lower = header_text.lower()
+                    in_summary = 'summary' in header_lower or 'abstract' in header_lower
+                    in_key_points = 'key point' in header_lower or 'takeaway' in header_lower
+            else:
+                # Collect content for current section
+                if current_section:
+                    section_content.append(line)
+                
+                # Extract summary content
+                if in_summary and line.strip():
+                    structure['summary'] += line + ' '
+                
+                # Extract key points (look for bullet points)
+                if in_key_points and line.strip().startswith(('-', '*', '•')):
+                    key_point = line.strip().lstrip('-*•').strip()
+                    if key_point:
+                        structure['key_points'].append(key_point)
+        
+        # Save last section
+        if current_section and section_content:
+            structure['sections'][current_section] = '\n'.join(section_content).strip()
+        
+        # Clean up summary
+        structure['summary'] = structure['summary'].strip()
+        
+        return structure
+    
+    def _update_inverted_index(self, doc_id: str, body: str, title: str = "") -> None:
+        """
+        Update inverted index with terms from a document
+        """
+        # Tokenize content (body + title)
+        full_text = f"{title} {body}".lower()
+        tokens = re.findall(r'\b\w+\b', full_text)
+        
+        # Count term frequencies
+        term_freq = Counter(tokens)
+        
+        # Update document length
+        self.document_lengths[doc_id] = len(tokens)
+        
+        # Update inverted index
+        for term, freq in term_freq.items():
+            # Skip very short terms and common stopwords
+            if len(term) < 2 or term in {'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being'}:
+                continue
+                
+            if term not in self.inverted_index:
+                self.inverted_index[term] = {}
+            
+            self.inverted_index[term][doc_id] = freq
+    
+    def _search_with_index(self, query_terms: List[str]) -> Set[str]:
+        """
+        Use inverted index to quickly find candidate documents
+        """
+        candidate_docs = set()
+        
+        for term in query_terms:
+            term_lower = term.lower()
+            
+            # Direct term lookup
+            if term_lower in self.inverted_index:
+                candidate_docs.update(self.inverted_index[term_lower].keys())
+            
+            # Also check stemmed versions
+            # Simple stemming by removing common suffixes
+            suffixes = ['ing', 'ed', 'es', 's', 'er', 'est', 'ly']
+            for suffix in suffixes:
+                if term_lower.endswith(suffix) and len(term_lower) > len(suffix) + 2:
+                    stem = term_lower[:-len(suffix)]
+                    if stem in self.inverted_index:
+                        candidate_docs.update(self.inverted_index[stem].keys())
+                        break
+        
+        return candidate_docs
     
     def expand_query(self, query: str) -> Dict[str, Any]:
         """
@@ -215,6 +349,305 @@ class EnhancedIntelligentSearchEngine:
             'all_search_terms': list(expanded_tokens.union(stemmed_tokens))
         }
     
+    def _generate_report_outline(self, query: str, search_results: List[Dict[str, Any]], query_intent: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Generate a structured outline for the report based on query and results
+        """
+        # Group results by theme/cluster
+        clusters = {}
+        for result in search_results:
+            cluster_id = result.get('cluster_id', result['file_key'])
+            if cluster_id not in clusters:
+                clusters[cluster_id] = []
+            clusters[cluster_id].append(result)
+        
+        # Determine report structure based on query type
+        answer_type = query_intent.get('expected_answer_type', 'detailed_explanation')
+        
+        outline = {
+            'title': f"Report: {query}",
+            'executive_summary': {
+                'purpose': f"Comprehensive answer to: {query}",
+                'key_findings': []
+            },
+            'sections': [],
+            'conclusion': {
+                'summary_points': [],
+                'recommendations': []
+            }
+        }
+        
+        # Build sections based on answer type
+        if answer_type == 'step_by_step_guide':
+            # Organize as sequential steps
+            outline['sections'].append({
+                'title': 'Prerequisites',
+                'content_type': 'list',
+                'sources': []
+            })
+            outline['sections'].append({
+                'title': 'Step-by-Step Instructions',
+                'content_type': 'numbered_list',
+                'sources': []
+            })
+            outline['sections'].append({
+                'title': 'Common Issues and Solutions',
+                'content_type': 'subsections',
+                'sources': []
+            })
+        
+        elif answer_type == 'comparison_table':
+            # Organize as comparison
+            items = query_intent.get('comparison_items', ['Option A', 'Option B'])
+            outline['sections'].append({
+                'title': 'Overview',
+                'content_type': 'paragraph',
+                'sources': []
+            })
+            outline['sections'].append({
+                'title': f'{items[0] if len(items) > 0 else "First Option"} Details',
+                'content_type': 'subsections',
+                'sources': []
+            })
+            if len(items) > 1:
+                outline['sections'].append({
+                    'title': f'{items[1]} Details',
+                    'content_type': 'subsections',
+                    'sources': []
+                })
+            outline['sections'].append({
+                'title': 'Comparison Summary',
+                'content_type': 'table',
+                'sources': []
+            })
+        
+        else:
+            # Default structure - organize by theme/cluster
+            for i, (cluster_id, cluster_results) in enumerate(clusters.items()):
+                if i >= 4:  # Limit to 4 main sections
+                    break
+                
+                # Get primary result for cluster theme
+                primary = next((r for r in cluster_results if r.get('is_cluster_primary')), cluster_results[0])
+                theme = primary['content'].get('category', f'Topic {i+1}')
+                
+                outline['sections'].append({
+                    'title': theme,
+                    'content_type': 'mixed',
+                    'sources': [r['file_key'] for r in cluster_results]
+                })
+        
+        return outline
+    
+    def _generate_structured_report(self, query: str, search_results: List[Dict[str, Any]], outline: Dict[str, Any], context_pieces: List[str]) -> Optional[Dict[str, Any]]:
+        """
+        Generate a structured report based on the outline
+        """
+        try:
+            # Generate executive summary
+            exec_summary_prompt = f"""Create an executive summary for this research query:
+            
+Query: "{query}"
+Number of sources: {len(search_results)}
+
+Based on these sources:
+{chr(10).join(context_pieces[:3])}
+
+Create a brief executive summary (2-3 sentences) that directly answers the question."""
+
+            exec_summary = _call_llm_api(exec_summary_prompt, "executive summary")
+            if not exec_summary:
+                return None
+            
+            # Start building the report
+            report_parts = [f"# {outline['title']}\n"]
+            report_parts.append("## Executive Summary\n")
+            report_parts.append(exec_summary + "\n")
+            
+            # Add table of contents if multiple sections
+            if len(outline['sections']) > 1:
+                report_parts.append("\n## Table of Contents\n")
+                for i, section in enumerate(outline['sections']):
+                    report_parts.append(f"{i+1}. [{section['title']}](#{section['title'].lower().replace(' ', '-')})\n")
+                report_parts.append("\n")
+            
+            # Track citations for footnotes
+            citation_map = {}  # source_key -> citation_number
+            citation_counter = 1
+            
+            # Generate content for each section
+            for section in outline['sections']:
+                report_parts.append(f"\n## {section['title']}\n")
+                
+                # Get relevant sources for this section
+                section_sources = []
+                section_citations = []
+                for result in search_results:
+                    if result['file_key'] in section.get('sources', []) or not section.get('sources'):
+                        section_sources.append(result)
+                        # Track citation
+                        if result['file_key'] not in citation_map:
+                            citation_map[result['file_key']] = citation_counter
+                            citation_counter += 1
+                        section_citations.append(citation_map[result['file_key']])
+                        if len(section_sources) >= 3:
+                            break
+                
+                # Generate section content based on type
+                if section['content_type'] == 'numbered_list':
+                    section_prompt = f"""Create a numbered list of steps for: {section['title']}
+Query context: {query}
+
+Use these sources:
+{self._format_sources_for_section_with_citations(section_sources, section_citations)}
+
+Format as a clear numbered list with detailed steps.
+Include inline citations using [1], [2], etc. when referencing specific information from sources."""
+                
+                elif section['content_type'] == 'table':
+                    section_prompt = f"""Create a comparison table for: {section['title']}
+Query context: {query}
+
+Use these sources:
+{self._format_sources_for_section_with_citations(section_sources, section_citations)}
+
+Format as a markdown table comparing key features.
+Include citations in table cells using [1], [2], etc."""
+                
+                else:
+                    section_prompt = f"""Write a section about: {section['title']}
+Query context: {query}
+
+Use these sources:
+{self._format_sources_for_section_with_citations(section_sources, section_citations)}
+
+Include key points and specific details from the sources.
+Add inline citations using [1], [2], etc. when making claims based on specific sources."""
+                
+                section_content = _call_llm_api(section_prompt, f"section: {section['title']}")
+                if section_content:
+                    report_parts.append(section_content + "\n")
+            
+            # Add conclusion
+            report_parts.append("\n## Conclusion\n")
+            conclusion_prompt = f"""Write a brief conclusion for this report on: {query}
+
+Summarize the key findings and provide any recommendations.
+Keep it to 2-3 sentences."""
+            
+            conclusion = _call_llm_api(conclusion_prompt, "conclusion")
+            if conclusion:
+                report_parts.append(conclusion + "\n")
+            
+            # Add sources section with proper citations
+            report_parts.append("\n## References\n")
+            # Sort citation map by citation number
+            sorted_citations = sorted(citation_map.items(), key=lambda x: x[1])
+            for file_key, citation_num in sorted_citations:
+                # Find the source in search results
+                source_result = next((r for r in search_results if r['file_key'] == file_key), None)
+                if source_result:
+                    content = source_result['content']
+                    file_path = content.get('full_path', 'Unknown')
+                    file_name = Path(file_path).name if file_path != 'Unknown' else 'Unknown'
+                    report_parts.append(f"[{citation_num}] **{content.get('title', 'Untitled')}** by {content.get('author', 'Unknown')} - {file_name} (Category: {content.get('category', 'General')})\n")
+            
+            # Calculate confidence
+            top_scores = [r.get('final_score', r.get('score', 0)) for r in search_results[:3]]
+            confidence = min(0.9, sum(top_scores) / len(top_scores) / 10.0) if top_scores else 0.5
+            
+            return {
+                "answer": ''.join(report_parts),
+                "confidence": confidence,
+                "sources": [
+                    {
+                        'title': r['content'].get('title', 'Untitled'),
+                        'author': r['content'].get('author', 'Unknown'),
+                        'category': r['content'].get('category', 'General'),
+                        'file_path': r['content'].get('full_path', 'Unknown'),
+                        'score': r.get('final_score', r.get('score', 0))
+                    }
+                    for r in search_results[:10]
+                ],
+                "total_results": len(search_results),
+                "report_type": "structured"
+            }
+            
+        except Exception as e:
+            print(f"Error generating structured report: {e}")
+            return None
+    
+    def _format_sources_for_section(self, sources: List[Dict[str, Any]]) -> str:
+        """Format sources for section generation"""
+        formatted = []
+        for i, source in enumerate(sources[:3]):
+            content = source['content']
+            formatted.append(f"""
+Source {i+1}: {content.get('title', 'Untitled')}
+{content.get('body', '')[:500]}...
+""")
+        return '\n'.join(formatted)
+    
+    def _format_sources_for_section_with_citations(self, sources: List[Dict[str, Any]], citations: List[int]) -> str:
+        """Format sources with citation numbers for section generation"""
+        formatted = []
+        for i, (source, citation_num) in enumerate(zip(sources[:3], citations[:3])):
+            content = source['content']
+            formatted.append(f"""
+Source [{citation_num}]: {content.get('title', 'Untitled')} by {content.get('author', 'Unknown')}
+{content.get('body', '')[:500]}...
+""")
+        return '\n'.join(formatted)
+    
+    def configure_qa_system(self, config_name: str = "comprehensive") -> None:
+        """Configure the QA system with a preset or custom configuration"""
+        if config_name in QA_CONFIGS:
+            self.qa_system = ReportQASystem(QA_CONFIGS[config_name])
+            self.improvement_pipeline = ReportImprovementPipeline(self.qa_system)
+        else:
+            print(f"Unknown QA config: {config_name}. Available: {list(QA_CONFIGS.keys())}")
+    
+    def synthesize_answer_with_qa(self, query: str, search_results: List[Dict[str, Any]], 
+                                 use_structured_report: bool = True, 
+                                 enable_qa_improvement: bool = True) -> Dict[str, Any]:
+        """
+        Generate answer with optional QA improvement pipeline
+        """
+        # Generate initial answer
+        initial_result = self.synthesize_answer(query, search_results, use_structured_report)
+        
+        if not enable_qa_improvement or not self.qa_system.config.get("enabled", True):
+            return initial_result
+        
+        # Run improvement pipeline
+        try:
+            improvement_result = self.improvement_pipeline.improve_report(
+                initial_result["answer"],
+                initial_result.get("sources", []),
+                query
+            )
+            
+            # Add QA information to result
+            result = initial_result.copy()
+            result.update({
+                "qa_enabled": True,
+                "qa_status": improvement_result["status"],
+                "original_answer": improvement_result["original_report"],
+                "answer": improvement_result["improved_report"],
+                "qa_results": improvement_result.get("final_qa", improvement_result.get("qa_results")),
+                "improvements_made": improvement_result.get("improvements_made", []),
+                "score_improvement": improvement_result.get("score_improvement", 0.0)
+            })
+            
+            return result
+            
+        except Exception as e:
+            print(f"Error in QA improvement pipeline: {e}")
+            # Return original result if QA fails
+            initial_result["qa_enabled"] = False
+            initial_result["qa_error"] = str(e)
+            return initial_result
+    
     def parse_query_intent(self, query: str) -> Dict[str, Any]:
         """
         Enhanced query intent parsing with query expansion
@@ -267,35 +700,60 @@ Respond in valid JSON format."""
         # Fallback with expanded query info
         query_lower = query.lower()
         intent_type = "information_seeking"
+        expected_answer_type = "synthesized_answer"
+        comparison_items = []
         
         if any(phrase in query_lower for phrase in ["how to", "best way", "steps for"]):
             intent_type = "instruction_seeking"
+            expected_answer_type = "step_by_step_guide"
         elif expanded_query['query_parts'] and any(p['type'] == 'comparison' for p in expanded_query['query_parts']):
             intent_type = "comparison_seeking"
+            expected_answer_type = "comparison_table"
+            # Extract comparison items from query parts
+            for part in expanded_query['query_parts']:
+                if part['type'] == 'comparison' and 'items' in part:
+                    comparison_items = part['items']
+                    break
         elif any(phrase in query_lower for phrase in ["why isn't", "what went wrong", "fix", "troubleshoot"]):
             intent_type = "troubleshooting"
+            expected_answer_type = "troubleshooting_guide"
         elif any(phrase in query_lower for phrase in ["find all", "show me", "list"]):
             intent_type = "discovery"
+            expected_answer_type = "content_list"
         
-        return {
+        result = {
             "intent_type": intent_type,
             "key_entities": [],
             "key_concepts": [],
             "context_filters": {},
-            "expected_answer_type": "synthesized_answer",
+            "expected_answer_type": expected_answer_type,
             "confidence": 0.5,
             "expanded_query": expanded_query
         }
+        
+        # Add comparison items if found
+        if comparison_items:
+            result["comparison_items"] = comparison_items
+            
+        return result
     
     def calculate_search_score(self, query_data: Dict, content_data: Dict) -> float:
         """
-        Calculate relevance score using multiple factors
+        Calculate relevance score using multiple factors including phrase proximity and structure
         """
         score = 0.0
         
         # Safely get title and body with defaults
         title_lower = content_data.get('title', '').lower()
         body_lower = content_data.get('body', '').lower()
+        
+        # Parse markdown structure if not already done
+        if 'structure' not in content_data:
+            content_data['structure'] = self._parse_markdown_structure(content_data.get('body', ''))
+        
+        structure = content_data.get('structure', {})
+        if not structure:
+            structure = {'headers': [], 'summary': '', 'key_points': [], 'sections': {}}
         
         # Score for exact phrase matches (highest weight)
         for trigram in query_data.get('trigrams', []):
@@ -320,6 +778,34 @@ Respond in valid JSON format."""
             # Body matches (with diminishing returns)
             body_matches = sum(1 for term in all_terms if term in body_lower)
             score += min(body_matches * 0.1, 2.0)
+            
+            # NEW: Structure-aware scoring
+            # Summary matches (high value)
+            if structure.get('summary'):
+                summary_lower = structure['summary'].lower()
+                summary_matches = sum(1 for term in all_terms if term in summary_lower)
+                if summary_matches:
+                    score += (summary_matches / len(all_terms)) * 4.0  # 2x multiplier
+            
+            # Header matches (medium-high value)
+            for header in structure.get('headers', []):
+                header_lower = header['text'].lower()
+                header_matches = sum(1 for term in all_terms if term in header_lower)
+                if header_matches:
+                    # Higher level headers get more weight
+                    header_weight = 3.0 / header['level']  # H1=3.0, H2=1.5, H3=1.0
+                    score += (header_matches / len(all_terms)) * header_weight
+            
+            # Key points matches (high value)
+            for key_point in structure.get('key_points', []):
+                key_point_lower = key_point.lower()
+                kp_matches = sum(1 for term in all_terms if term in key_point_lower)
+                if kp_matches:
+                    score += (kp_matches / len(all_terms)) * 3.6  # 1.8x multiplier
+        
+        # NEW: Phrase proximity scoring
+        proximity_score = self._calculate_proximity_score(query_data.get('tokens', []), body_lower)
+        score += proximity_score
         
         # Boost for entity/concept matches
         entities = set(content_data.get('frontmatter', {}).get('entities', []))
@@ -333,17 +819,103 @@ Respond in valid JSON format."""
         
         return score
     
+    def _calculate_proximity_score(self, query_tokens: List[str], text: str) -> float:
+        """
+        Calculate proximity bonus based on how close query terms appear to each other
+        Using efficient sliding window approach instead of exponential combinations
+        """
+        if len(query_tokens) < 2 or not text:
+            return 0.0
+        
+        # Find all positions of query tokens in text
+        token_positions = {}
+        for token in query_tokens:
+            positions = []
+            start = 0
+            while True:
+                pos = text.find(token, start)
+                if pos == -1:
+                    break
+                positions.append(pos)
+                start = pos + 1
+            if positions:
+                token_positions[token] = positions
+        
+        # If not all tokens found, no proximity bonus
+        if len(token_positions) < len(query_tokens):
+            return 0.0
+        
+        # Use a more efficient approach: find the minimum window containing all terms
+        # Instead of checking all combinations, use a sliding window approach
+        
+        # Create a list of all positions with their token
+        all_positions = []
+        for token in query_tokens:
+            for pos in token_positions.get(token, []):
+                all_positions.append((pos, token))
+        
+        # Sort by position
+        all_positions.sort()
+        
+        # Find minimum window containing all unique tokens
+        min_span = float('inf')
+        left = 0
+        token_count = {}
+        unique_tokens_in_window = 0
+        
+        for right in range(len(all_positions)):
+            pos, token = all_positions[right]
+            
+            # Add token to window
+            if token not in token_count:
+                token_count[token] = 0
+            token_count[token] += 1
+            if token_count[token] == 1:
+                unique_tokens_in_window += 1
+            
+            # Try to shrink window from left
+            while unique_tokens_in_window == len(query_tokens):
+                # Calculate span
+                span = all_positions[right][0] - all_positions[left][0]
+                min_span = min(min_span, span)
+                
+                # Remove leftmost token
+                left_pos, left_token = all_positions[left]
+                token_count[left_token] -= 1
+                if token_count[left_token] == 0:
+                    unique_tokens_in_window -= 1
+                left += 1
+        
+        # Calculate proximity bonus
+        # Closer terms get higher bonus (normalized by 100 chars)
+        if min_span < float('inf'):
+            proximity_bonus = 2.0 / (1 + min_span / 100)
+            return proximity_bonus
+        
+        return 0.0
+    
     def search_content(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
         """
-        Enhanced search with query expansion and better scoring
+        Enhanced search with query expansion and better scoring using inverted index
         """
         query_intent = self.parse_query_intent(query)
         expanded_query = query_intent.get('expanded_query', self.expand_query(query))
         
         results = []
         
-        # Search all content with enhanced scoring
-        for file_key, content_data in self.content_index.items():
+        # Use inverted index to get candidate documents
+        candidate_docs = self._search_with_index(expanded_query['all_search_terms'])
+        
+        # If no candidates from index, fall back to full search
+        if not candidate_docs:
+            candidate_docs = set(self.content_index.keys())
+        
+        # Score only candidate documents
+        for file_key in candidate_docs:
+            if file_key not in self.content_index:
+                continue
+                
+            content_data = self.content_index[file_key]
             score = self.calculate_search_score(expanded_query, content_data)
             
             if score > 0:
@@ -477,9 +1049,9 @@ Respond in valid JSON format."""
         
         return final_results
     
-    def synthesize_answer(self, query: str, search_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def synthesize_answer(self, query: str, search_results: List[Dict[str, Any]], use_structured_report: bool = True) -> Dict[str, Any]:
         """
-        Use LLM to synthesize an answer from clustered search results
+        Use LLM to synthesize an answer from clustered search results with optional structured report
         """
         if not search_results:
             return {
@@ -542,6 +1114,16 @@ Instructions:
 7. If the sources don't fully answer the question, say so
 
 Please provide a clear, comprehensive answer based on the available sources."""
+
+        # If structured report is requested, generate it
+        if use_structured_report:
+            query_intent = self.parse_query_intent(query)
+            outline = self._generate_report_outline(query, search_results, query_intent)
+            
+            # Generate structured report
+            structured_answer = self._generate_structured_report(query, search_results, outline, context_pieces)
+            if structured_answer:
+                return structured_answer
 
         try:
             response = _call_llm_api(prompt, "answer synthesis")
