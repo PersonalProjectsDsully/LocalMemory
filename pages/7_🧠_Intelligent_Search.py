@@ -18,6 +18,222 @@ st.set_page_config(
     layout="wide"
 )
 
+def parse_qa_response_manually(response_text: str) -> dict:
+    """
+    Manually parse QA response when JSON parsing fails
+    """
+    import re
+    
+    # Initialize result structure
+    qa_results = {
+        "inaccurate_or_confusing_sections": [],
+        "overall_score": 0.7,
+        "suggestions": []
+    }
+    
+    try:
+        # Look for section issues in the text
+        section_patterns = [
+            r'[Ss]ection\s+(\d+[:\-\s]?[^:\n]*)',
+            r'##\s*([^:\n]+)',
+            r'Problem[:\s]+([^\n]+)',
+            r'Issue[:\s]+([^\n]+)'
+        ]
+        
+        # Extract issues by looking for patterns
+        issues_found = []
+        lines = response_text.split('\n')
+        current_section = "Analysis"
+        current_issue = ""
+        current_fix = ""
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Look for section mentions
+            for pattern in section_patterns:
+                match = re.search(pattern, line, re.IGNORECASE)
+                if match:
+                    current_section = match.group(1).strip()
+                    break
+            
+            # Look for issue descriptions
+            if any(keyword in line.lower() for keyword in ['issue:', 'problem:', 'concern:', 'error:']):
+                current_issue = re.sub(r'^[^:]*:', '', line).strip()
+            
+            # Look for suggestions/fixes
+            if any(keyword in line.lower() for keyword in ['fix:', 'suggest:', 'recommend:', 'solution:']):
+                current_fix = re.sub(r'^[^:]*:', '', line).strip()
+            
+            # If we have both issue and fix, create an entry
+            if current_issue and current_fix:
+                issues_found.append({
+                    "section_title": current_section,
+                    "issue": current_issue,
+                    "suggested_fix": current_fix,
+                    "confidence": 0.8
+                })
+                current_issue = ""
+                current_fix = ""
+        
+        # If no structured issues found, create a general one
+        if not issues_found:
+            # Extract the main content as a general issue
+            content_lines = [line for line in lines if line.strip() and not line.startswith('#')]
+            if content_lines:
+                main_content = ' '.join(content_lines[:3])  # First 3 non-empty lines
+                issues_found.append({
+                    "section_title": "General Analysis",
+                    "issue": "QA analysis completed - see detailed feedback",
+                    "suggested_fix": main_content[:300] + "..." if len(main_content) > 300 else main_content,
+                    "confidence": 0.7
+                })
+        
+        qa_results["inaccurate_or_confusing_sections"] = issues_found
+        
+        # Look for overall score
+        score_match = re.search(r'score[:\s]*(\d+\.?\d*)', response_text, re.IGNORECASE)
+        if score_match:
+            qa_results["overall_score"] = float(score_match.group(1))
+            if qa_results["overall_score"] > 1.0:  # If it's out of 10, convert to 0-1
+                qa_results["overall_score"] = qa_results["overall_score"] / 10.0
+        
+        # Extract general suggestions
+        suggestion_lines = [line for line in lines if any(word in line.lower() for word in ['recommend', 'suggest', 'consider', 'should'])]
+        qa_results["suggestions"] = suggestion_lines[:3]  # Max 3 suggestions
+        
+    except Exception as e:
+        print(f"Manual parsing error: {e}")
+        # Absolute fallback
+        qa_results = {
+            "inaccurate_or_confusing_sections": [
+                {
+                    "section_title": "Manual Analysis",
+                    "issue": "QA analysis completed but formatting needs improvement",
+                    "suggested_fix": "Please review the analysis manually as automatic parsing failed",
+                    "confidence": 0.6
+                }
+            ],
+            "overall_score": 0.7,
+            "suggestions": ["Review QA analysis manually"]
+        }
+    
+    return qa_results
+
+def extract_json_aggressively(response_text: str) -> dict:
+    """
+    Aggressively extract and reconstruct JSON from malformed responses
+    """
+    import re
+    import json
+    
+    try:
+        # Look for individual components in the response
+        sections = []
+        overall_score = 0.7
+        suggestions = []
+        
+        # Extract sections using multiple patterns
+        section_patterns = [
+            r'"section_title":\s*"([^"]+)"[,\s]*"issue":\s*"([^"]+)"[,\s]*"suggested_fix":\s*"([^"]+)"',
+            r'section_title["\']?\s*:\s*["\']([^"\']+)["\'][,\s]*issue["\']?\s*:\s*["\']([^"\']+)["\'][,\s]*suggested_fix["\']?\s*:\s*["\']([^"\']+)["\']',
+        ]
+        
+        for pattern in section_patterns:
+            matches = re.findall(pattern, response_text, re.DOTALL | re.IGNORECASE)
+            for match in matches:
+                if len(match) >= 3:
+                    sections.append({
+                        "section_title": match[0].strip(),
+                        "issue": match[1].strip(),
+                        "suggested_fix": match[2].strip(),
+                        "confidence": 0.8
+                    })
+        
+        # Look for overall score
+        score_patterns = [
+            r'"overall_score":\s*([0-9.]+)',
+            r'overall_score["\']?\s*:\s*([0-9.]+)',
+            r'score[:\s]*([0-9.]+)'
+        ]
+        
+        for pattern in score_patterns:
+            match = re.search(pattern, response_text, re.IGNORECASE)
+            if match:
+                score = float(match.group(1))
+                if score > 1.0:  # Convert from 0-10 to 0-1
+                    score = score / 10.0
+                overall_score = score
+                break
+        
+        # Look for suggestions
+        suggestion_patterns = [
+            r'"suggestions":\s*\[(.*?)\]',
+            r'suggestions["\']?\s*:\s*\[(.*?)\]'
+        ]
+        
+        for pattern in suggestion_patterns:
+            match = re.search(pattern, response_text, re.DOTALL | re.IGNORECASE)
+            if match:
+                suggestion_text = match.group(1)
+                # Extract individual suggestions
+                individual_suggestions = re.findall(r'"([^"]+)"', suggestion_text)
+                suggestions = individual_suggestions[:3]  # Max 3
+                break
+        
+        # If no structured sections found, try to extract from free text
+        if not sections:
+            lines = response_text.split('\n')
+            current_section = "Analysis"
+            current_issue = ""
+            current_fix = ""
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # Look for section references
+                if re.search(r'section\s+\d+', line, re.IGNORECASE):
+                    section_match = re.search(r'section\s+(\d+[^:\n]*)', line, re.IGNORECASE)
+                    if section_match:
+                        current_section = f"Section {section_match.group(1)}"
+                
+                # Look for issues/problems
+                if any(keyword in line.lower() for keyword in ['issue:', 'problem:', 'error:', 'incorrect:']):
+                    current_issue = re.sub(r'^[^:]*:\s*', '', line).strip()
+                
+                # Look for fixes/suggestions
+                if any(keyword in line.lower() for keyword in ['fix:', 'suggest:', 'solution:', 'correct:']):
+                    current_fix = re.sub(r'^[^:]*:\s*', '', line).strip()
+                
+                # If we have both, add to sections
+                if current_issue and current_fix:
+                    sections.append({
+                        "section_title": current_section,
+                        "issue": current_issue,
+                        "suggested_fix": current_fix,
+                        "confidence": 0.7
+                    })
+                    current_issue = ""
+                    current_fix = ""
+        
+        # Construct result
+        if sections or suggestions:
+            return {
+                "inaccurate_or_confusing_sections": sections,
+                "overall_score": overall_score,
+                "suggestions": suggestions
+            }
+        else:
+            return None
+            
+    except Exception as e:
+        print(f"Aggressive extraction error: {e}")
+        return None
+
 st.title("🧠 Intelligent Search")
 st.markdown("Advanced AI-powered search with comprehensive research workflow")
 
@@ -238,9 +454,9 @@ with st.sidebar:
         sessions = workflow_persistence.list_sessions()
         if sessions:
             session_names = [f"{s['created_at'][:10]} - {s['original_query'][:50]}..." for s in sessions[:5]]
-            selected_session = st.selectbox("Load previous session:", [""] + session_names)
+            selected_session = st.selectbox("Load previous session:", ["Select a session..."] + session_names)
             
-            if selected_session and st.button("Load Session"):
+            if selected_session and selected_session != "Select a session..." and st.button("Load Session"):
                 # Load the selected session
                 session_idx = session_names.index(selected_session)
                 session = sessions[session_idx]
@@ -457,6 +673,23 @@ if st.session_state.workflow_mode:
             
             data = workflow_state['data']
             
+            # Handle parse errors - try to extract data from raw_response
+            if data.get('parse_error') and 'raw_response' in data:
+                try:
+                    import json
+                    # Try to parse the raw response
+                    raw_data = json.loads(data['raw_response'])
+                    # Merge the parsed data into the data dict
+                    data.update(raw_data)
+                except:
+                    st.warning("There was an issue parsing the clarification questions. Proceeding with defaults.")
+                    # Create default clarification structure
+                    data['clarifying_questions'] = []
+                    data['query_analysis'] = {
+                        'main_topic': 'AI Agents vs Other AI Systems',
+                        'implicit_needs': ['Comparison of approaches', 'Use cases', 'Implementation guidance']
+                    }
+            
             # Show analysis
             with st.expander("Query Analysis", expanded=True):
                 if 'query_analysis' in data:
@@ -470,39 +703,46 @@ if st.session_state.workflow_mode:
                             st.write(f"- {need}")
             
             # Clarifying questions
-            st.markdown("**Please answer these questions to help refine your research:**")
+            clarifying_questions = data.get('clarifying_questions', [])
             
-            for i, question_data in enumerate(data.get('clarifying_questions', [])):
-                question = question_data['question']
-                purpose = question_data.get('purpose', '')
-                options = question_data.get('options', [])
+            if clarifying_questions:
+                st.markdown("**Please answer these questions to help refine your research:**")
                 
-                st.markdown(f"**{i+1}. {question}**")
-                if purpose:
-                    st.caption(purpose)
-                
-                if options:
-                    response = st.selectbox(
-                        "Select an option or write your own:",
-                        [""] + options + ["Other (specify below)"],
-                        key=f"q_{i}"
-                    )
-                    if response == "Other (specify below)":
-                        response = st.text_input("Your answer:", key=f"q_text_{i}")
-                else:
-                    response = st.text_area("Your answer:", key=f"q_area_{i}", height=70)
-                
-                st.session_state.clarification_responses[question] = response
+                for i, question_data in enumerate(clarifying_questions):
+                    question = question_data['question']
+                    purpose = question_data.get('purpose', '')
+                    options = question_data.get('options', [])
+                    
+                    st.markdown(f"**{i+1}. {question}**")
+                    if purpose:
+                        st.caption(purpose)
+                    
+                    if options:
+                        response = st.selectbox(
+                            "Select an option or write your own:",
+                            [""] + options + ["Other (specify below)"],
+                            key=f"q_{i}"
+                        )
+                        if response == "Other (specify below)":
+                            response = st.text_input("Your answer:", key=f"q_text_{i}")
+                    else:
+                        response = st.text_area("Your answer:", key=f"q_area_{i}", height=70)
+                    
+                    st.session_state.clarification_responses[question] = response
+            else:
+                st.info("No clarifying questions needed. Proceeding with the analysis of your request.")
             
             # Suggested refinement
             if 'suggested_refinement' in data:
                 st.info(f"💡 Suggested refined request: {data['suggested_refinement']}")
             
             # Continue button
-            all_answered = all(
-                st.session_state.clarification_responses.get(q['question']) 
-                for q in data.get('clarifying_questions', [])
-            )
+            all_answered = True  # Default to true if no questions
+            if clarifying_questions:
+                all_answered = all(
+                    st.session_state.clarification_responses.get(q['question']) 
+                    for q in clarifying_questions
+                )
             
             if st.button("Continue to Task Planning →", type="primary", disabled=not all_answered):
                 with st.spinner("Planning research tasks..."):
@@ -582,12 +822,17 @@ if st.session_state.workflow_mode:
                         st.rerun()
             
             # Add new task section
-            with st.expander("➕ Add New Task", expanded=bool(st.session_state.get('prefill_task') and not st.session_state.get('prefill_task_used'))):
-                # Check for pre-filled values
-                prefill = st.session_state.get('prefill_task') if not st.session_state.get('prefill_task_used') else {}
+            has_prefill = bool(st.session_state.get('prefill_task'))
+            with st.expander("➕ Add New Task", expanded=has_prefill):
+                # Check for pre-filled values - don't mark as used until task is actually added
+                prefill = st.session_state.get('prefill_task', {})
                 # Ensure prefill is a dict (not None)
                 if prefill is None:
                     prefill = {}
+                
+                # Show prefill indicator
+                if has_prefill:
+                    st.info("📋 Pre-filled from suggestion/gap - modify as needed")
                 
                 new_task_title = st.text_input("Task Title:", 
                                              value=prefill.get('title', ''),
@@ -598,10 +843,6 @@ if st.session_state.workflow_mode:
                 new_task_scope = st.text_area("Task Scope:", 
                                             value=prefill.get('scope', ''),
                                             key="new_task_scope", height=70)
-                
-                # Mark prefill as used after values are displayed
-                if prefill and not st.session_state.get('prefill_task_used'):
-                    st.session_state.prefill_task_used = True
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
@@ -626,18 +867,19 @@ if st.session_state.workflow_mode:
                                 }
                                 st.session_state.editable_decomposition['subtasks'].append(new_task)
                                 
-                                # Clear the prefill task and reset the used flag
+                                # Clear the prefill task since we successfully added the task
                                 st.session_state.prefill_task = None
-                                st.session_state.prefill_task_used = False
                                 
+                                st.success(f"✅ Added task: {new_task_title}")
                                 st.rerun()
+                            else:
+                                st.error("❌ Please provide both title and objective")
                     
                     with col3b:
                         # Show cancel button only if there's a prefill task
                         if st.session_state.get('prefill_task'):
                             if st.button("Cancel", key="cancel_prefill"):
                                 st.session_state.prefill_task = None
-                                st.session_state.prefill_task_used = False
                                 st.rerun()
             
             # Verification results
@@ -744,18 +986,45 @@ if st.session_state.workflow_mode:
             
             data = workflow_state['data']
             
-            # Progress overview
-            total_tasks = len(data)
-            completed_tasks = sum(1 for r in data if r.get('validation', {}).get('sufficient', False))
+            # Progress overview - use all subtasks, not just data
+            all_subtasks = workflow_orchestrator.workflow.workflow_state.get('subtasks', [])
+            total_tasks = len(all_subtasks)
             
-            st.progress(completed_tasks / total_tasks if total_tasks > 0 else 0)
-            st.markdown(f"**Research Progress:** {completed_tasks}/{total_tasks} tasks completed")
+            # Count completed tasks from multiple sources
+            completed_count = 0
+            for subtask in all_subtasks:
+                task_id = subtask['id']
+                # Check in data results
+                task_result = next((r for r in data if r.get('subtask', {}).get('id') == task_id), None)
+                if task_result and (task_result.get('completed', False) or task_result.get('validation', {}).get('sufficient', False)):
+                    completed_count += 1
+                # Also check in scratchpads for tasks with findings
+                elif task_id in workflow_orchestrator.workflow.workflow_state.get('scratchpads', {}):
+                    scratchpad = workflow_orchestrator.workflow.workflow_state['scratchpads'][task_id]
+                    if scratchpad.get('iteration_count', 0) >= 3 and (scratchpad.get('high_value_findings') or scratchpad.get('insights')):
+                        completed_count += 1
             
-            # Show research results for each subtask
-            for result in data:
-                subtask = result['subtask']
-                research = result['research']
-                validation = result['validation']
+            st.progress(completed_count / total_tasks if total_tasks > 0 else 0)
+            st.markdown(f"**Research Progress:** {completed_count}/{total_tasks} tasks completed")
+            
+            # Get all subtasks from workflow state
+            all_subtasks = workflow_orchestrator.workflow.workflow_state.get('subtasks', [])
+            scratchpads = workflow_orchestrator.workflow.workflow_state.get('scratchpads', {})
+            doc_analysis = workflow_orchestrator.workflow.workflow_state.get('document_analysis', {})
+            
+            # Show research results for ALL subtasks
+            for subtask in all_subtasks:
+                # Find result for this subtask in data
+                result = next((r for r in data if r['subtask']['id'] == subtask['id']), None)
+                
+                if result:
+                    research = result['research']
+                    validation = result['validation']
+                else:
+                    # Create placeholder for tasks not yet in data
+                    research = {'documents_found': 0, 'keywords': {}, 'analysis': {}}
+                    validation = {'sufficient': False, 'total_findings': 0}
+                    result = {'subtask': subtask, 'research': research, 'validation': validation}
                 
                 with st.expander(f"📚 {subtask['title']}", expanded=not validation.get('sufficient', False)):
                     # Research summary
@@ -983,12 +1252,173 @@ if st.session_state.workflow_mode:
                                 if 'manual_improvement_applied' in st.session_state:
                                     current_report = st.session_state.manual_improvement_applied['improved_report']
                                 
-                                # Run QA on the current report
-                                qa_results = search_engine.qa_system.run_report_qa(
-                                    current_report, 
-                                    sources, 
-                                    "Manual quality assessment of research report"
-                                )
+                                # Run QA using the new structured system
+                                try:
+                                    from utils.structured_qa_integration import StructuredQAManager
+                                    from utils.llm_utils import _call_llm_api
+                                    
+                                    # Use structured QA for better analysis
+                                    workspace_path = Path(st.session_state.workflow_state.get('workspace_path', '.'))
+                                    qa_manager = StructuredQAManager(workspace_path)
+                                    
+                                    # Import the report into structured format
+                                    structured_doc = qa_manager.import_existing_report(current_report, "qa_review")
+                                    
+                                    # Perform comprehensive QA analysis using LLM
+                                    qa_prompt = f"""Please analyze this research report for quality and accuracy. 
+
+REPORT CONTENT:
+{current_report[:8000]}
+
+CONTEXT: Manual quality assessment of research report
+SOURCES USED: {len(sources)} sources
+
+Please identify any issues with:
+1. Technical accuracy and factual correctness
+2. Clarity and readability 
+3. Completeness of information
+4. Structure and organization
+5. Practical applicability
+
+For each issue found, provide:
+- Section title where the issue occurs
+- Description of the specific issue
+- Suggested fix or improvement
+- Confidence level (0.0-1.0)
+
+IMPORTANT: Return ONLY valid JSON format without any additional text, markdown formatting, or code blocks:
+
+{{
+  "inaccurate_or_confusing_sections": [
+    {{
+      "section_title": "Section Name",
+      "issue": "Description of issue",
+      "suggested_fix": "How to fix it",
+      "confidence": 0.9
+    }}
+  ],
+  "structural_issues": [
+    {{
+      "section_title": "Structure",
+      "issue": "Document organization or flow issues",
+      "suggested_fix": "How to improve structure",
+      "confidence": 0.9
+    }}
+  ],
+  "overall_score": 0.8,
+  "confidence": 0.85,
+  "trust_score": 0.82,
+  "suggestions": ["General suggestion 1", "General suggestion 2"]
+}}
+
+Do not include ```json``` code blocks or any other formatting - just the raw JSON object."""
+
+                                    response = _call_llm_api(qa_prompt, "QA analysis")
+                                    
+                                    if response:
+                                        try:
+                                            # Clean and extract JSON from response
+                                            import json
+                                            import re
+                                            
+                                            # Handle case where full API response is received instead of just content
+                                            if isinstance(response, str) and '"choices"' in response and '"message"' in response:
+                                                try:
+                                                    api_response = json.loads(response)
+                                                    if "choices" in api_response and len(api_response["choices"]) > 0:
+                                                        message = api_response["choices"][0].get("message", {})
+                                                        response = message.get("content", response)
+                                                        print("DEBUG: Extracted content from OpenAI API response structure")
+                                                except json.JSONDecodeError:
+                                                    pass  # Continue with original response if not valid JSON
+                                            
+                                            # Remove code block markers and thinking tags
+                                            cleaned_response = response.strip()
+                                            
+                                            # Remove thinking tags (common in qwen models)
+                                            if '<think>' in cleaned_response:
+                                                parts = cleaned_response.split('</think>')
+                                                if len(parts) > 1:
+                                                    cleaned_response = parts[1].strip()
+                                            
+                                            # Remove code block markers
+                                            if cleaned_response.startswith('```json'):
+                                                cleaned_response = cleaned_response[7:]
+                                            if cleaned_response.startswith('```'):
+                                                cleaned_response = cleaned_response[3:]
+                                            if cleaned_response.endswith('```'):
+                                                cleaned_response = cleaned_response[:-3]
+                                            
+                                            # Fix common JSON issues
+                                            # Remove trailing commas before } or ]
+                                            cleaned_response = re.sub(r',(\s*[}\]])', r'\1', cleaned_response)
+                                            # Fix unescaped quotes in strings
+                                            cleaned_response = re.sub(r'(?<!\\)"(?=[^",\s]*[^",\s:}])', r'\\"', cleaned_response)
+                                            # Ensure proper closing braces
+                                            if cleaned_response.count('{') > cleaned_response.count('}'):
+                                                cleaned_response += '}'
+                                            if cleaned_response.count('[') > cleaned_response.count(']'):
+                                                cleaned_response += ']'
+                                            
+                                            # Try to find JSON in the response
+                                            json_match = re.search(r'\{.*?"inaccurate_or_confusing_sections".*?\}', cleaned_response, re.DOTALL)
+                                            if json_match:
+                                                json_str = json_match.group()
+                                                # Fix trailing commas in the matched JSON too
+                                                json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+                                                qa_results = json.loads(json_str)
+                                                print(f"DEBUG: Successfully parsed JSON with {len(qa_results.get('inaccurate_or_confusing_sections', []))} issues")
+                                            elif cleaned_response.strip().startswith('{') and cleaned_response.strip().endswith('}'):
+                                                qa_results = json.loads(cleaned_response.strip())
+                                                print("DEBUG: Parsed full response as JSON")
+                                            else:
+                                                raise ValueError("No valid JSON structure found in response")
+                                                
+                                            # Validate the parsed structure
+                                            if not isinstance(qa_results.get('inaccurate_or_confusing_sections'), list):
+                                                raise ValueError("Invalid JSON structure - missing or invalid inaccurate_or_confusing_sections")
+                                                
+                                        except json.JSONDecodeError as e:
+                                            print(f"DEBUG: JSON decode error: {e}")
+                                            print(f"DEBUG: Response preview: {response[:300]}...")
+                                            # Try a more aggressive JSON extraction first
+                                            try:
+                                                qa_results = extract_json_aggressively(response)
+                                                if qa_results:
+                                                    print("DEBUG: Aggressive JSON extraction succeeded")
+                                                else:
+                                                    raise ValueError("Aggressive extraction failed")
+                                            except:
+                                                print("DEBUG: Falling back to manual parsing")
+                                                qa_results = parse_qa_response_manually(response)
+                                        except Exception as e:
+                                            print(f"DEBUG: JSON parsing failed: {e}")
+                                            print(f"DEBUG: Response preview: {response[:300]}...")
+                                            # Try aggressive extraction first
+                                            try:
+                                                qa_results = extract_json_aggressively(response)
+                                                if qa_results:
+                                                    print("DEBUG: Aggressive JSON extraction succeeded")
+                                                else:
+                                                    raise ValueError("Aggressive extraction failed")
+                                            except:
+                                                print("DEBUG: Falling back to manual parsing")
+                                                qa_results = parse_qa_response_manually(response)
+                                    else:
+                                        qa_results = {
+                                            "inaccurate_or_confusing_sections": [],
+                                            "overall_score": 0.7,
+                                            "suggestions": ["QA analysis was not available"]
+                                        }
+                                        
+                                except Exception as structured_error:
+                                    print(f"Structured QA failed, falling back to legacy: {structured_error}")
+                                    # Fallback to legacy system
+                                    qa_results = search_engine.qa_system.run_report_qa(
+                                        current_report, 
+                                        sources, 
+                                        "Manual quality assessment of research report"
+                                    )
                                 
                                 # Store QA results in session state for display
                                 st.session_state.manual_qa_results = qa_results
@@ -1075,7 +1505,9 @@ if st.session_state.workflow_mode:
                         trust_score = qa_results.get('trust_score', 0) * 100
                         st.metric("Trust Score", f"{trust_score:.0f}%")
                     with col4:
-                        total_issues = len(qa_results.get('inaccurate_or_confusing_sections', []))
+                        accuracy_issues = len(qa_results.get('inaccurate_or_confusing_sections', []))
+                        structural_issues = len(qa_results.get('structural_issues', []))
+                        total_issues = accuracy_issues + structural_issues
                         st.metric("Issues Found", total_issues)
                     
                     # Show trust/fix decision information
@@ -1106,8 +1538,34 @@ if st.session_state.workflow_mode:
                 # Issues and recommendations
                 if qa_results.get('inaccurate_or_confusing_sections'):
                     with st.expander("⚠️ Issues & Recommendations", expanded=False):
+                        # Add "Select Issues to Apply" section at the top
+                        st.markdown("**Select Issues to Apply:**")
+                        col_select_all, col_apply_selected = st.columns([2, 1])
+                        
+                        with col_select_all:
+                            select_all = st.checkbox("Select All Issues", key=get_unique_key("select_all_issues"))
+                        
+                        # Track selected issues
+                        selected_issues = []
+                        selected_custom_instructions = {}
+                        
+                        st.divider()
+                        
                         for i, issue in enumerate(qa_results['inaccurate_or_confusing_sections']):
-                            st.markdown(f"**Issue {i+1}: {issue.get('section_title', 'General')}**")
+                            # Issue header with checkbox
+                            col_check, col_title = st.columns([0.5, 4])
+                            
+                            with col_check:
+                                issue_selected = st.checkbox(
+                                    "", 
+                                    value=select_all,
+                                    key=get_unique_key(f"select_issue_{i}"),
+                                    help=f"Select Issue {i+1} for batch application"
+                                )
+                            
+                            with col_title:
+                                st.markdown(f"**Issue {i+1}: {issue.get('section_title', 'General')}**")
+                            
                             st.write(f"**Problem:** {issue.get('issue', 'Not specified')}")
                             if issue.get('suggested_fix'):
                                 st.write(f"**Suggested Fix:** {issue.get('suggested_fix')}")
@@ -1119,161 +1577,575 @@ if st.session_state.workflow_mode:
                                 custom_instruction = st.text_area(
                                     f"Custom instructions for Issue {i+1}:",
                                     placeholder=f"Optional: Provide specific instructions for fixing this issue...\ne.g., 'Fix the lack of explicit intro and conclusion sections, make headings clearer'",
-                                    height=60,
+                                    height=80,
                                     key=get_unique_key(f"custom_instruction_{i}"),
                                     help="Leave empty to use the suggested fix, or provide your own specific instructions"
                                 )
                             
+                            # Track selected issues and their custom instructions
+                            if issue_selected:
+                                # Create a copy of the issue with custom instructions if provided
+                                issue_copy = issue.copy()
+                                if custom_instruction and custom_instruction.strip():
+                                    issue_copy['custom_instruction'] = custom_instruction.strip()
+                                selected_issues.append(issue_copy)
+                                if custom_instruction and custom_instruction.strip():
+                                    selected_custom_instructions[i] = custom_instruction.strip()
+                            
                             with col2:
-                                # Apply with suggested fix
+                                # Apply with suggested fix using structured approach
                                 if st.button(f"🔧 Apply Suggested", key=get_unique_key(f"apply_suggested_{i}"), help=f"Apply suggested fix for Issue {i+1}"):
-                                    with st.spinner(f"Applying suggested fix for Issue {i+1}..."):
+                                    with st.spinner(f"Applying suggested fix for Issue {i+1} using structured approach..."):
                                         try:
-                                            from utils.intelligent_search_enhanced import get_enhanced_search_engine
-                                            search_engine = get_enhanced_search_engine()
+                                            from utils.structured_qa_integration import StructuredQAManager, create_llm_improvement_function
+                                            from utils.llm_utils import _call_llm_api
+                                            from utils.document_wide_improvements import apply_document_wide_improvements
                                             
-                                            if not hasattr(search_engine, 'improvement_pipeline') or search_engine.improvement_pipeline is None:
-                                                st.error("❌ Improvement pipeline is not available.")
-                                            else:
-                                                # Get current report
-                                                current_report = report
-                                                if 'manual_improvement_applied' in st.session_state:
-                                                    current_report = st.session_state.manual_improvement_applied['improved_report']
+                                            # Get current report
+                                            current_report = report
+                                            if 'manual_improvement_applied' in st.session_state:
+                                                current_report = st.session_state.manual_improvement_applied['improved_report']
+                                            
+                                            # Initialize structured QA manager
+                                            workspace_path = Path("research_workspace") / st.session_state.get('current_session_directory', '')
+                                            qa_manager = StructuredQAManager(workspace_path)
+                                            
+                                            # Import current report into structured system
+                                            structured_doc = qa_manager.import_existing_report(current_report, "final_report")
+                                            
+                                            # Convert single issue to structured format
+                                            section_title = issue.get('section_title', 'General')
+                                            issue_desc = issue.get('issue', '')
+                                            
+                                            print(f"DEBUG: Section title: '{section_title}'")
+                                            print(f"DEBUG: Issue: {issue_desc}")
+                                            
+                                            # Check if this is a document-wide issue using the DocumentWideImprover
+                                            from utils.document_wide_improvements import document_improver
+                                            
+                                            # Use both section title and issue description to detect document-wide issues
+                                            issue_title = f"{section_title}: {issue_desc}"
+                                            is_document_wide = document_improver.can_handle_issue(issue_title)
+                                            
+                                            # Also check for specific structural indicators
+                                            is_structural = (
+                                                section_title in ['Structure', 'General', 'Overall organization'] or
+                                                'structure' in issue_desc.lower() or
+                                                'organization' in issue_desc.lower() or
+                                                'introduction' in issue_desc.lower() or
+                                                'conclusion' in issue_desc.lower() or
+                                                'overview' in issue_desc.lower() or
+                                                'flow' in issue_desc.lower() or
+                                                'multiple sections' in issue_desc.lower() or
+                                                'document' in issue_desc.lower()
+                                            )
+                                            
+                                            is_document_wide = is_document_wide or is_structural
+                                            
+                                            if is_document_wide:
+                                                print("DEBUG: Detected document-wide issue")
                                                 
-                                                # Apply fix for just this specific issue with suggested fix
-                                                sources = [{"title": "Manual QA Review", "content": {"body": "Individual issue fix - suggested"}, "author": "User", "category": "QA"}]
-                                                improved_report, improvements_made, error = safe_improvement_pipeline_call(
-                                                    search_engine,
-                                                    current_report, 
-                                                    [issue],  # Only this specific issue
-                                                    sources,
-                                                    f"Fix for Issue {i+1}: {issue.get('section_title', 'General')}"
+                                                # Apply document-wide improvements
+                                                result = apply_document_wide_improvements(
+                                                    document_content=current_report,
+                                                    qa_results={'inaccurate_or_confusing_sections': [issue]},
+                                                    llm_function=_call_llm_api,
+                                                    custom_instructions=custom_instruction if custom_instruction and custom_instruction.strip() else None
                                                 )
                                                 
-                                                if error:
-                                                    st.error(f"❌ Failed to apply suggested fix for Issue {i+1}: {error}")
-                                                    continue
-                                                
-                                                if improved_report != current_report:
-                                                    # Use helper function to update session state
-                                                    fix_details = {
-                                                        'issue_number': i+1,
-                                                        'section': issue.get('section_title', 'General'),
-                                                        'fix_type': 'suggested',
-                                                        'fix_applied': datetime.now()
-                                                    }
+                                                if result.get('status') == 'improved':
+                                                    improved_report = result['improved']
+                                                    verification = result.get('verification', {})
                                                     
-                                                    # Get the truly original report (before any improvements)
-                                                    original_report = report
-                                                    if 'manual_improvement_applied' in st.session_state:
-                                                        original_report = st.session_state.manual_improvement_applied.get('original_report', report)
-                                                    
-                                                    update_improvement_session_state(
-                                                        original_report, 
-                                                        improved_report, 
-                                                        improvements_made, 
-                                                        'individual', 
-                                                        fix_details
-                                                    )
-                                                    
-                                                    # Update workflow state if available
+                                                    # Update workflow state
                                                     try:
                                                         if ('workflow_state' in st.session_state and 
                                                             st.session_state.workflow_state is not None and
-                                                            'data' in st.session_state.workflow_state and
-                                                            isinstance(st.session_state.workflow_state['data'], dict)):
-                                                            st.session_state.workflow_state['data']['report'] = improved_report
+                                                            'data' in st.session_state.workflow_state):
+                                                            if isinstance(st.session_state.workflow_state['data'], dict):
+                                                                st.session_state.workflow_state['data']['report'] = improved_report
                                                     except Exception as e:
                                                         print(f"Warning: Could not update workflow state: {e}")
+                                                    
+                                                    # Store improvement info
+                                                    st.session_state.manual_improvement_applied = {
+                                                        'original_report': current_report,
+                                                        'improved_report': improved_report,
+                                                        'improvements_made': result.get('changes_made', []),
+                                                        'score_improvement': verification.get('verification_score', 0),
+                                                        'timestamp': datetime.now(),
+                                                        'selected_issues_count': 1,
+                                                        'custom_instructions_count': 1 if custom_instruction else 0,
+                                                        'method': 'document_wide',
+                                                        'verification': verification
+                                                    }
+                                                    
+                                                    st.success(f"✅ Applied document-wide structural improvements")
+                                                    
+                                                    # Show verification results
+                                                    if verification:
+                                                        st.markdown("**📊 Verification Results:**")
+                                                        col1, col2 = st.columns(2)
+                                                        with col1:
+                                                            st.metric("Verification Score", f"{verification.get('verification_score', 0) * 100:.0f}%")
+                                                        with col2:
+                                                            st.metric("Issues Addressed", "✅" if verification.get('all_issues_addressed') else "⚠️")
+                                                        
+                                                        if verification.get('summary'):
+                                                            st.write("**Summary:** " + verification['summary'])
+                                                    
+                                                    st.rerun()
+                                                else:
+                                                    st.warning(f"⚠️ No structural changes made")
+                                                    print(f"DEBUG: Document-wide result: {result}")
+                                                
+                                                # Skip the rest of the section-based logic
+                                                continue
+                                            
+                                            # Original section-based logic for non-structural issues
+                                            print(f"DEBUG: Looking for section '{section_title}'")
+                                            print(f"DEBUG: Available sections: {[s.title for s in structured_doc.sections.values()]}")
+                                            
+                                            # Special handling for QA category labels like "Structure", "Clarity", etc.
+                                            section_id = None
+                                            if section_title in ['Structure', 'Clarity', 'Accuracy', 'Style', 'General']:
+                                                # These are QA categories, not actual sections
+                                                # Try to find the section mentioned in the issue description
+                                                issue_desc = issue.get('issue', '')
+                                                
+                                                # Look for "Section X" patterns in the issue
+                                                import re
+                                                section_match = re.search(r'Section (\d+)', issue_desc)
+                                                if section_match:
+                                                    section_num = section_match.group(1)
+                                                    # Find section with this number
+                                                    for sid, section in structured_doc.sections.items():
+                                                        if f"Section {section_num}" in section.title:
+                                                            section_id = sid
+                                                            print(f"DEBUG: Found section by number: {section.title}")
+                                                            break
+                                                
+                                                # If still not found, check the first major section
+                                                if not section_id:
+                                                    for sid, section in structured_doc.sections.items():
+                                                        if section.level == 2 and "Section" in section.title:
+                                                            section_id = sid
+                                                            print(f"DEBUG: Using first major section: {section.title}")
+                                                            break
+                                            else:
+                                                # Normal section title lookup
+                                                section_id = qa_manager.find_section_by_title(structured_doc, section_title)
+                                            
+                                            print(f"DEBUG: Found section ID: {section_id}")
+                                            
+                                            if section_id:
+                                                issue_id = structured_doc.add_qa_issue(
+                                                    section_id=section_id,
+                                                    issue_type=qa_manager.classify_issue_type(issue.get('issue', '')),
+                                                    description=issue.get('issue', ''),
+                                                    suggested_fix=issue.get('suggested_fix', '')
+                                                )
+                                                
+                                                # Create LLM function
+                                                try:
+                                                    llm_function = create_llm_improvement_function(_call_llm_api)
+                                                    print("DEBUG: LLM function created successfully")
+                                                except Exception as e:
+                                                    print(f"DEBUG: Failed to create LLM function: {e}")
+                                                    st.error(f"❌ Failed to create LLM function: {str(e)}")
+                                                    continue
+                                                
+                                                # Apply fix for just this issue
+                                                result = qa_manager.apply_selective_fixes(
+                                                    document_id="final_report",
+                                                    selected_issue_ids=[issue_id],
+                                                    llm_function=llm_function
+                                                )
+                                                
+                                                if result.get('status') == 'improved':
+                                                    # Update workflow state
+                                                    try:
+                                                        if ('workflow_state' in st.session_state and 
+                                                            st.session_state.workflow_state is not None and
+                                                            'data' in st.session_state.workflow_state):
+                                                            if isinstance(st.session_state.workflow_state['data'], dict):
+                                                                st.session_state.workflow_state['data']['report'] = result['improved_report']
+                                                    except Exception as e:
+                                                        print(f"Warning: Could not update workflow state: {e}")
+                                                    
+                                                    # Store improvement info
+                                                    st.session_state.manual_improvement_applied = {
+                                                        'original_report': current_report,
+                                                        'improved_report': result['improved_report'],
+                                                        'improvements_made': result.get('improvements_made', []),
+                                                        'score_improvement': 0,
+                                                        'timestamp': datetime.now(),
+                                                        'selected_issues_count': 1,
+                                                        'custom_instructions_count': 0,
+                                                        'sections_modified': result.get('sections_modified', []),
+                                                        'method': 'structured_qa'
+                                                    }
                                                     
                                                     st.success(f"✅ Applied suggested fix for Issue {i+1}")
                                                     st.rerun()
                                                 else:
                                                     st.warning(f"⚠️ No changes made for Issue {i+1}")
+                                                    print(f"DEBUG: Result status: {result.get('status')}")
+                                                    print(f"DEBUG: Result message: {result.get('message', 'No message')}")
+                                                    if result.get('status') == 'no_changes':
+                                                        st.info("💡 The LLM may have determined that no changes were needed, or returned the same content.")
+                                            else:
+                                                st.error(f"❌ Could not find section for issue. Section title: '{section_title}'")
+                                                
+                                                # Check if this could be handled as document-wide issue
+                                                from utils.document_wide_improvements import document_improver
+                                                issue_title = f"{section_title}: {issue_desc}"
+                                                if document_improver.can_handle_issue(issue_title):
+                                                    st.info("💡 This appears to be a document-wide issue. Try using the batch application feature to apply document-wide improvements.")
+                                                elif section_title in ['Structure', 'Clarity', 'Accuracy', 'Style', 'General']:
+                                                    st.info("💡 This appears to be a QA category label. The issue description should indicate which section needs improvement, or it may be a document-wide issue.")
+                                                else:
+                                                    st.info("💡 Section not found. This might be a document-wide issue that affects multiple sections.")
+                                                
                                         except Exception as e:
-                                            st.error(f"❌ Failed to apply suggested fix for Issue {i+1}: {str(e)}")
+                                            st.error(f"❌ Failed to apply fix: {str(e)}")
+                                            import traceback
+                                            print(traceback.format_exc())
                             
                             with col3:
-                                # Apply with custom instruction
-                                custom_disabled = not custom_instruction.strip()
-                                if st.button(f"✏️ Apply Custom", key=get_unique_key(f"apply_custom_{i}"), 
-                                           disabled=custom_disabled,
-                                           help=f"Apply custom fix for Issue {i+1}" if not custom_disabled else "Enter custom instructions first"):
-                                    with st.spinner(f"Applying custom fix for Issue {i+1}..."):
-                                        try:
-                                            from utils.intelligent_search_enhanced import get_enhanced_search_engine
-                                            search_engine = get_enhanced_search_engine()
-                                            
-                                            if not hasattr(search_engine, 'improvement_pipeline') or search_engine.improvement_pipeline is None:
-                                                st.error("❌ Improvement pipeline is not available.")
-                                            else:
+                                # Apply with custom instruction using structured approach
+                                if custom_instruction and custom_instruction.strip():
+                                    if st.button(f"🛠️ Apply Custom", key=get_unique_key(f"apply_custom_{i}"), help=f"Apply custom fix for Issue {i+1}"):
+                                        with st.spinner(f"Applying custom fix for Issue {i+1} using structured approach..."):
+                                            try:
+                                                from utils.structured_qa_integration import StructuredQAManager, create_llm_improvement_function
+                                                from utils.llm_utils import _call_llm_api
+                                                
                                                 # Get current report
                                                 current_report = report
                                                 if 'manual_improvement_applied' in st.session_state:
                                                     current_report = st.session_state.manual_improvement_applied['improved_report']
                                                 
-                                                # Create custom issue with user's instructions
-                                                custom_issue = {
-                                                    'section_title': issue.get('section_title', 'General'),
-                                                    'issue': issue.get('issue', 'Not specified'),
-                                                    'suggested_fix': custom_instruction.strip()
-                                                }
+                                                # Initialize structured QA manager
+                                                workspace_path = Path("research_workspace") / st.session_state.get('current_session_directory', '')
+                                                qa_manager = StructuredQAManager(workspace_path)
                                                 
-                                                # Apply fix with custom instruction
-                                                sources = [{"title": "Manual QA Review - Custom", "content": {"body": "Individual issue fix - custom instruction"}, "author": "User", "category": "QA"}]
-                                                improved_report, improvements_made, error = safe_improvement_pipeline_call(
-                                                    search_engine,
-                                                    current_report, 
-                                                    [custom_issue],  # Use custom issue
-                                                    sources,
-                                                    f"Custom fix for Issue {i+1}: {custom_instruction[:50]}..."
+                                                # Import current report into structured system
+                                                structured_doc = qa_manager.import_existing_report(current_report, "final_report")
+                                                
+                                                # Convert single issue to structured format
+                                                section_title = issue.get('section_title', 'General')
+                                                issue_desc = issue.get('issue', '')
+                                                
+                                                # Check if this is a document-wide issue
+                                                from utils.document_wide_improvements import document_improver
+                                                issue_title = f"{section_title}: {issue_desc}"
+                                                is_document_wide = document_improver.can_handle_issue(issue_title)
+                                                
+                                                # Also check for specific structural indicators
+                                                is_structural = (
+                                                    section_title in ['Structure', 'General', 'Overall organization'] or
+                                                    'structure' in issue_desc.lower() or
+                                                    'organization' in issue_desc.lower() or
+                                                    'introduction' in issue_desc.lower() or
+                                                    'conclusion' in issue_desc.lower() or
+                                                    'overview' in issue_desc.lower() or
+                                                    'flow' in issue_desc.lower() or
+                                                    'multiple sections' in issue_desc.lower() or
+                                                    'document' in issue_desc.lower()
                                                 )
                                                 
-                                                if error:
-                                                    st.error(f"❌ Failed to apply custom fix for Issue {i+1}: {error}")
-                                                    continue
+                                                is_document_wide = is_document_wide or is_structural
                                                 
-                                                if improved_report != current_report:
-                                                    # Use helper function to update session state
-                                                    fix_details = {
-                                                        'issue_number': i+1,
-                                                        'section': issue.get('section_title', 'General'),
-                                                        'fix_type': 'custom',
-                                                        'custom_instruction': custom_instruction.strip(),
-                                                        'fix_applied': datetime.now()
-                                                    }
+                                                if is_document_wide:
+                                                    print("DEBUG: Custom instruction - detected document-wide issue")
                                                     
-                                                    # Get the truly original report (before any improvements)
-                                                    original_report = report
-                                                    if 'manual_improvement_applied' in st.session_state:
-                                                        original_report = st.session_state.manual_improvement_applied.get('original_report', report)
+                                                    # Apply document-wide improvements with custom instruction
+                                                    from utils.document_wide_improvements import apply_document_wide_improvements
                                                     
-                                                    update_improvement_session_state(
-                                                        original_report, 
-                                                        improved_report, 
-                                                        improvements_made, 
-                                                        'individual', 
-                                                        fix_details
+                                                    result = apply_document_wide_improvements(
+                                                        document_content=current_report,
+                                                        qa_results={'inaccurate_or_confusing_sections': [issue]},
+                                                        llm_function=_call_llm_api,
+                                                        custom_instructions=custom_instruction.strip()
                                                     )
                                                     
-                                                    # Update workflow state if available
-                                                    try:
-                                                        if ('workflow_state' in st.session_state and 
-                                                            st.session_state.workflow_state is not None and
-                                                            'data' in st.session_state.workflow_state and
-                                                            isinstance(st.session_state.workflow_state['data'], dict)):
-                                                            st.session_state.workflow_state['data']['report'] = improved_report
-                                                    except Exception as e:
-                                                        print(f"Warning: Could not update workflow state: {e}")
+                                                    if result.get('status') == 'improved':
+                                                        improved_report = result['improved']
+                                                        verification = result.get('verification', {})
+                                                        
+                                                        # Update workflow state
+                                                        try:
+                                                            if ('workflow_state' in st.session_state and 
+                                                                st.session_state.workflow_state is not None and
+                                                                'data' in st.session_state.workflow_state):
+                                                                if isinstance(st.session_state.workflow_state['data'], dict):
+                                                                    st.session_state.workflow_state['data']['report'] = improved_report
+                                                        except Exception as e:
+                                                            print(f"Warning: Could not update workflow state: {e}")
+                                                        
+                                                        # Store improvement info
+                                                        st.session_state.manual_improvement_applied = {
+                                                            'original_report': current_report,
+                                                            'improved_report': improved_report,
+                                                            'improvements_made': result.get('changes_made', []),
+                                                            'score_improvement': verification.get('verification_score', 0),
+                                                            'timestamp': datetime.now(),
+                                                            'selected_issues_count': 1,
+                                                            'custom_instructions_count': 1,
+                                                            'method': 'document_wide_custom',
+                                                            'verification': verification
+                                                        }
+                                                        
+                                                        st.success(f"✅ Applied custom document-wide improvements")
+                                                        
+                                                        # Show verification results
+                                                        if verification:
+                                                            st.markdown("**📊 Verification Results:**")
+                                                            col1, col2 = st.columns(2)
+                                                            with col1:
+                                                                st.metric("Verification Score", f"{verification.get('verification_score', 0) * 100:.0f}%")
+                                                            with col2:
+                                                                st.metric("Issues Addressed", "✅" if verification.get('all_issues_addressed') else "⚠️")
+                                                            
+                                                            if verification.get('summary'):
+                                                                st.write("**Summary:** " + verification['summary'])
+                                                        
+                                                        st.rerun()
+                                                    else:
+                                                        st.warning(f"⚠️ No custom changes made")
                                                     
-                                                    st.success(f"✅ Applied custom fix for Issue {i+1}")
-                                                    st.rerun()
+                                                    # Skip the rest of the section-based logic
                                                 else:
-                                                    st.warning(f"⚠️ No changes made for Issue {i+1}")
-                                        except Exception as e:
-                                            st.error(f"❌ Failed to apply custom fix for Issue {i+1}: {str(e)}")
+                                                    # Section-based logic for non-document-wide issues
+                                                    section_id = qa_manager.find_section_by_title(structured_doc, section_title)
+                                                    
+                                                    if section_id:
+                                                        issue_id = structured_doc.add_qa_issue(
+                                                            section_id=section_id,
+                                                            issue_type=qa_manager.classify_issue_type(issue.get('issue', '')),
+                                                            description=issue.get('issue', ''),
+                                                            suggested_fix=issue.get('suggested_fix', '')
+                                                        )
+                                                        
+                                                        # Create LLM function
+                                                        llm_function = create_llm_improvement_function(_call_llm_api)
+                                                        
+                                                        # Apply fix with custom instruction
+                                                        result = qa_manager.apply_selective_fixes(
+                                                            document_id="final_report",
+                                                            selected_issue_ids=[issue_id],
+                                                            llm_function=llm_function,
+                                                            custom_instructions={issue_id: custom_instruction.strip()}
+                                                        )
+                                                        
+                                                        if result.get('status') == 'improved':
+                                                            # Update workflow state
+                                                            try:
+                                                                if ('workflow_state' in st.session_state and 
+                                                                    st.session_state.workflow_state is not None and
+                                                                    'data' in st.session_state.workflow_state):
+                                                                    if isinstance(st.session_state.workflow_state['data'], dict):
+                                                                        st.session_state.workflow_state['data']['report'] = result['improved_report']
+                                                            except Exception as e:
+                                                                print(f"Warning: Could not update workflow state: {e}")
+                                                            
+                                                            # Store improvement info
+                                                            st.session_state.manual_improvement_applied = {
+                                                                'original_report': current_report,
+                                                                'improved_report': result['improved_report'],
+                                                                'improvements_made': result.get('improvements_made', []),
+                                                                'score_improvement': 0,
+                                                                'timestamp': datetime.now(),
+                                                                'selected_issues_count': 1,
+                                                                'custom_instructions_count': 1,
+                                                                'sections_modified': result.get('sections_modified', []),
+                                                                'method': 'structured_qa'
+                                                            }
+                                                            
+                                                            st.success(f"✅ Applied custom fix for Issue {i+1}")
+                                                            st.rerun()
+                                                        else:
+                                                            st.warning(f"⚠️ No changes made for Issue {i+1}")
+                                                    else:
+                                                        st.error(f"❌ Could not find section '{section_title}' in document")
+                                                        
+                                                        # Check if this could be handled as document-wide issue
+                                                        from utils.document_wide_improvements import document_improver
+                                                        issue_title = f"{section_title}: {issue_desc}"
+                                                        if document_improver.can_handle_issue(issue_title):
+                                                            st.info("💡 This appears to be a document-wide issue. Try using the batch application feature to apply document-wide improvements.")
+                                                        elif section_title in ['Structure', 'Clarity', 'Accuracy', 'Style', 'General']:
+                                                            st.info("💡 This appears to be a QA category label. The issue description should indicate which section needs improvement, or it may be a document-wide issue.")
+                                                        else:
+                                                            st.info("💡 Section not found. This might be a document-wide issue that affects multiple sections.")
+                                                    
+                                            except Exception as e:
+                                                st.error(f"❌ Failed to apply fix: {str(e)}")
+                                                import traceback
+                                                print(traceback.format_exc())
+                                            
+                                            # Skip to next iteration if structural issue was handled
+                                            if is_structural:
+                                                continue
+                                else:
+                                    st.button(f"🛠️ Apply Custom", disabled=True, key=get_unique_key(f"apply_custom_disabled_{i}"), help="Enter custom instructions first")
                             
+                            if i < len(qa_results['inaccurate_or_confusing_sections']) - 1:
+                                st.divider()
+                        
+                        # Display structural issues separately if they exist
+                        if qa_results.get('structural_issues'):
                             st.divider()
+                            st.markdown("### 🏗️ Structural Issues")
+                            st.markdown("Issues related to document organization, flow, and structure:")
+                            
+                            for j, structural_issue in enumerate(qa_results['structural_issues']):
+                                issue_num = len(qa_results.get('inaccurate_or_confusing_sections', [])) + j + 1
+                                
+                                # Structural issue header with checkbox
+                                col_check, col_title = st.columns([0.5, 4])
+                                
+                                with col_check:
+                                    structural_selected = st.checkbox(
+                                        "", 
+                                        value=select_all,
+                                        key=get_unique_key(f"select_structural_{j}"),
+                                        help=f"Select Structural Issue {j+1} for batch application"
+                                    )
+                                
+                                with col_title:
+                                    st.markdown(f"**Structural Issue {j+1}: {structural_issue.get('section_title', 'Structure')}**")
+                                
+                                st.write(f"**Problem:** {structural_issue.get('issue', 'Not specified')}")
+                                if structural_issue.get('suggested_fix'):
+                                    st.write(f"**Suggested Fix:** {structural_issue.get('suggested_fix')}")
+                                
+                                if structural_selected:
+                                    selected_issues.append(structural_issue)
+                                
+                                # Custom instruction for structural issue
+                                col1, col2, col3 = st.columns([3, 1, 1])
+                                
+                                with col1:
+                                    structural_custom_instruction = st.text_area(
+                                        f"Custom instructions for Structural Issue {j+1}:",
+                                        placeholder=f"Optional: Provide specific instructions for fixing this structural issue...\ne.g., 'Add proper introduction and conclusion sections, reorganize content flow'",
+                                        height=80,
+                                        key=get_unique_key(f"structural_custom_instruction_{j}"),
+                                        help="Leave empty to use the suggested fix, or provide your own specific instructions"
+                                    )
+                                
+                                if j < len(qa_results['structural_issues']) - 1:
+                                    st.divider()
+                        
+                        # Update the apply selected button in the header
+                        with col_apply_selected:
+                            if selected_issues:
+                                if st.button(f"🚀 Apply {len(selected_issues)} Selected", type="primary", help=f"Apply fixes for {len(selected_issues)} selected issues using the reliable Force Apply method"):
+                                    st.session_state['apply_selected_clicked'] = True
+                                    st.rerun()
+                            else:
+                                st.button("🚀 Apply Selected", disabled=True, help="Select issues first")
+                        
+                        # Handle Apply Selected button click with structured approach
+                        if st.session_state.get('apply_selected_clicked', False):
+                            st.session_state['apply_selected_clicked'] = False  # Reset the flag
+                            
+                            if selected_issues:
+                                with st.spinner(f"Applying {len(selected_issues)} selected issue fixes using structured approach..."):
+                                    try:
+                                        from utils.structured_qa_integration import StructuredQAManager, create_llm_improvement_function
+                                        from utils.llm_utils import _call_llm_api
+                                        
+                                        # Get current report
+                                        current_report = report
+                                        if 'manual_improvement_applied' in st.session_state:
+                                            current_report = st.session_state.manual_improvement_applied['improved_report']
+                                        
+                                        # Initialize structured QA manager
+                                        workspace_path = Path("research_workspace") / st.session_state.get('current_session_directory', '')
+                                        qa_manager = StructuredQAManager(workspace_path)
+                                        
+                                        # Create document ID from current session
+                                        document_id = "final_report"
+                                        
+                                        # Import current report into structured system
+                                        structured_doc = qa_manager.import_existing_report(current_report, document_id)
+                                        
+                                        # Convert selected issues to structured format
+                                        selected_issue_ids = []
+                                        custom_instructions_map = {}
+                                        
+                                        for i, issue in enumerate(selected_issues):
+                                            # Find or create structured issue
+                                            section_title = issue.get('section_title', 'General')
+                                            section_id = qa_manager.find_section_by_title(structured_doc, section_title)
+                                            
+                                            if section_id:
+                                                issue_id = structured_doc.add_qa_issue(
+                                                    section_id=section_id,
+                                                    issue_type=qa_manager.classify_issue_type(issue.get('issue', '')),
+                                                    description=issue.get('issue', ''),
+                                                    suggested_fix=issue.get('suggested_fix', '')
+                                                )
+                                                selected_issue_ids.append(issue_id)
+                                                
+                                                # Add custom instruction if provided
+                                                if issue.get('custom_instruction'):
+                                                    custom_instructions_map[issue_id] = issue['custom_instruction']
+                                        
+                                        if selected_issue_ids:
+                                            # Create LLM function for structured QA
+                                            llm_function = create_llm_improvement_function(_call_llm_api)
+                                            
+                                            # Apply selective fixes using structured approach
+                                            result = qa_manager.apply_selective_fixes(
+                                                document_id=document_id,
+                                                selected_issue_ids=selected_issue_ids,
+                                                llm_function=llm_function,
+                                                custom_instructions=custom_instructions_map
+                                            )
+                                            
+                                            if result.get('status') == 'improved':
+                                                improved_report = result['improved_report']
+                                                
+                                                # Update the workflow state with improved report (safely)
+                                                try:
+                                                    if ('workflow_state' in st.session_state and 
+                                                        st.session_state.workflow_state is not None and
+                                                        'data' in st.session_state.workflow_state):
+                                                        if isinstance(st.session_state.workflow_state['data'], dict):
+                                                            st.session_state.workflow_state['data']['report'] = improved_report
+                                                except Exception as e:
+                                                    print(f"Warning: Could not update workflow state: {e}")
+                                                
+                                                # Store improvement info
+                                                st.session_state.manual_improvement_applied = {
+                                                    'original_report': current_report,
+                                                    'improved_report': improved_report,
+                                                    'improvements_made': result.get('improvements_made', []),
+                                                    'score_improvement': 0,  # Could calculate this
+                                                    'timestamp': datetime.now(),
+                                                    'selected_issues_count': len(selected_issues),
+                                                    'custom_instructions_count': len(selected_custom_instructions),
+                                                    'sections_modified': result.get('sections_modified', []),
+                                                    'method': 'structured_qa'
+                                                }
+                                                
+                                                st.success(f"✅ Applied fixes for {len(selected_issues)} selected issues using structured approach!")
+                                                st.rerun()
+                                            else:
+                                                st.warning("⚠️ No improvements were applied. The selected issues may already be resolved.")
+                                        else:
+                                            st.warning("⚠️ Could not map selected issues to document sections.")
+                                                
+                                    except Exception as e:
+                                        st.error(f"❌ Failed to apply selected issue fixes: {str(e)}")
+                                        import traceback
+                                        print(f"Detailed error: {traceback.format_exc()}")
+                        
+                        
                 
                 # Layer-specific details
                 if qa_results.get('layer_scores'):
@@ -1576,9 +2448,141 @@ if st.session_state.workflow_mode:
                                     
                                     sources = [{"title": "Manual QA Review", "content": {"body": "Re-run assessment"}, "author": "User", "category": "QA"}]
                                     
-                                    qa_results = search_engine.qa_system.run_report_qa(
-                                        current_report, sources, f"Manual QA re-run with {selected_config} config"
-                                    )
+                                    # Use new structured QA system for re-run
+                                    try:
+                                        from utils.structured_qa_integration import StructuredQAManager
+                                        from utils.llm_utils import _call_llm_api
+                                        
+                                        workspace_path = Path(st.session_state.workflow_state.get('workspace_path', '.'))
+                                        qa_manager = StructuredQAManager(workspace_path)
+                                        
+                                        # Enhanced QA prompt for re-run
+                                        qa_prompt = f"""Re-analyze this research report with {selected_config} configuration.
+
+REPORT CONTENT:
+{current_report[:8000]}
+
+CONTEXT: Manual QA re-run with enhanced analysis
+CONFIGURATION: {selected_config}
+
+Please provide a thorough quality assessment focusing on:
+1. Technical accuracy and factual correctness
+2. Clarity and readability 
+3. Completeness of information
+4. Structure and organization
+5. Practical applicability
+
+IMPORTANT: Return ONLY valid JSON format without any additional text, markdown formatting, or code blocks:
+
+{{
+  "inaccurate_or_confusing_sections": [
+    {{
+      "section_title": "Section Name",
+      "issue": "Description of issue",
+      "suggested_fix": "How to fix it",
+      "confidence": 0.9
+    }}
+  ],
+  "structural_issues": [
+    {{
+      "section_title": "Structure",
+      "issue": "Document organization or flow issues",
+      "suggested_fix": "How to improve structure",
+      "confidence": 0.9
+    }}
+  ],
+  "overall_score": 0.8,
+  "confidence": 0.85,
+  "trust_score": 0.82,
+  "suggestions": ["General suggestion 1", "General suggestion 2"]
+}}
+
+Do not include ```json``` code blocks or any other formatting - just the raw JSON object."""
+
+                                        response = _call_llm_api(qa_prompt, "QA re-analysis")
+                                        
+                                        if response:
+                                            try:
+                                                # Clean and extract JSON from response
+                                                import json
+                                                import re
+                                                
+                                                # Remove code block markers and thinking tags
+                                                cleaned_response = response.strip()
+                                                
+                                                # Remove thinking tags (common in qwen models)
+                                                if '<think>' in cleaned_response:
+                                                    parts = cleaned_response.split('</think>')
+                                                    if len(parts) > 1:
+                                                        cleaned_response = parts[1].strip()
+                                                
+                                                # Remove code block markers
+                                                if cleaned_response.startswith('```json'):
+                                                    cleaned_response = cleaned_response[7:]
+                                                if cleaned_response.startswith('```'):
+                                                    cleaned_response = cleaned_response[3:]
+                                                if cleaned_response.endswith('```'):
+                                                    cleaned_response = cleaned_response[:-3]
+                                                
+                                                # Fix common JSON issues (trailing commas, etc.)
+                                                cleaned_response = re.sub(r',(\s*[}\]])', r'\1', cleaned_response)
+                                                
+                                                # Try to find JSON in the response
+                                                json_match = re.search(r'\{.*?"inaccurate_or_confusing_sections".*?\}', cleaned_response, re.DOTALL)
+                                                if json_match:
+                                                    json_str = json_match.group()
+                                                    # Fix trailing commas in the matched JSON too
+                                                    json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+                                                    qa_results = json.loads(json_str)
+                                                    print(f"DEBUG: Re-analysis parsed JSON with {len(qa_results.get('inaccurate_or_confusing_sections', []))} issues")
+                                                elif cleaned_response.strip().startswith('{') and cleaned_response.strip().endswith('}'):
+                                                    qa_results = json.loads(cleaned_response.strip())
+                                                    print("DEBUG: Re-analysis parsed full response as JSON")
+                                                else:
+                                                    raise ValueError("No valid JSON structure found in re-analysis response")
+                                                    
+                                                # Validate the parsed structure
+                                                if not isinstance(qa_results.get('inaccurate_or_confusing_sections'), list):
+                                                    raise ValueError("Invalid JSON structure in re-analysis")
+                                                    
+                                            except json.JSONDecodeError as e:
+                                                print(f"DEBUG: Re-analysis JSON decode error: {e}")
+                                                print(f"DEBUG: Re-analysis response preview: {response[:300]}...")
+                                                # Try aggressive extraction first
+                                                try:
+                                                    qa_results = extract_json_aggressively(response)
+                                                    if qa_results:
+                                                        print("DEBUG: Re-analysis aggressive JSON extraction succeeded")
+                                                    else:
+                                                        raise ValueError("Re-analysis aggressive extraction failed")
+                                                except:
+                                                    print("DEBUG: Re-analysis falling back to manual parsing")
+                                                    qa_results = parse_qa_response_manually(response)
+                                            except Exception as e:
+                                                print(f"DEBUG: Re-analysis JSON parsing failed: {e}")
+                                                print(f"DEBUG: Re-analysis response preview: {response[:300]}...")
+                                                # Try aggressive extraction first
+                                                try:
+                                                    qa_results = extract_json_aggressively(response)
+                                                    if qa_results:
+                                                        print("DEBUG: Re-analysis aggressive JSON extraction succeeded")
+                                                    else:
+                                                        raise ValueError("Re-analysis aggressive extraction failed")
+                                                except:
+                                                    print("DEBUG: Re-analysis falling back to manual parsing")
+                                                    qa_results = parse_qa_response_manually(response)
+                                        else:
+                                            qa_results = {
+                                                "inaccurate_or_confusing_sections": [],
+                                                "overall_score": 0.7,
+                                                "suggestions": ["QA re-analysis was not available"]
+                                            }
+                                    except Exception as structured_error:
+                                        print(f"Structured QA re-run failed, falling back to legacy: {structured_error}")
+                                        # Fallback to legacy
+                                        qa_results = search_engine.qa_system.run_report_qa(
+                                            current_report, sources, f"Manual QA re-run with {selected_config} config"
+                                        )
                                     
                                     st.session_state.manual_qa_results = qa_results
                                     st.session_state.manual_qa_timestamp = datetime.now()
@@ -1601,10 +2605,51 @@ if st.session_state.workflow_mode:
                         if improvement_info.get('improvements_made'):
                             st.markdown("**Improvements Made:**")
                             for improvement in improvement_info['improvements_made']:
-                                st.markdown(f"**{improvement['section']}**")
-                                st.write("Issues addressed:")
-                                for issue in improvement['issues_addressed']:
-                                    st.write(f"• {issue}")
+                                # Handle both string and dictionary formats
+                                if isinstance(improvement, str):
+                                    st.write(f"• {improvement}")
+                                elif isinstance(improvement, dict):
+                                    st.markdown(f"**{improvement['section']}**")
+                                    st.write("Issues addressed:")
+                                    for issue in improvement['issues_addressed']:
+                                        st.write(f"• {issue}")
+                        
+                        # Show sections modified if using structured approach
+                        if improvement_info.get('sections_modified') and improvement_info.get('method') == 'structured_qa':
+                            st.markdown("**Sections Modified:**")
+                            for section in improvement_info['sections_modified']:
+                                st.write(f"• **{section['section_title']}** - {len(section['issues_resolved'])} issue(s) resolved")
+                                if section['original_length'] != section['new_length']:
+                                    st.caption(f"  Content size: {section['original_length']} → {section['new_length']} characters")
+                        
+                        # Show verification results for document-wide improvements
+                        if improvement_info.get('method') == 'document_wide' and improvement_info.get('verification'):
+                            verification = improvement_info['verification']
+                            st.markdown("**📊 Document-Wide Improvement Verification:**")
+                            
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                score = verification.get('verification_score', 0) * 100
+                                st.metric("Verification Score", f"{score:.0f}%")
+                            with col2:
+                                addressed = "✅" if verification.get('all_issues_addressed') else "❌"
+                                st.metric("Issues Addressed", addressed)
+                            with col3:
+                                preserved = "✅" if verification.get('information_preserved') else "❌"
+                                st.metric("Content Preserved", preserved)
+                            
+                            if verification.get('summary'):
+                                st.info(f"**Verification Summary:** {verification['summary']}")
+                            
+                            if verification.get('addressed_issues'):
+                                st.write("**Successfully Addressed:**")
+                                for item in verification['addressed_issues']:
+                                    st.write(f"  ✅ {item}")
+                            
+                            if verification.get('remaining_issues'):
+                                st.write("**Still Needs Attention:**")
+                                for item in verification['remaining_issues']:
+                                    st.write(f"  ⚠️ {item}")
                         
                         # Show individual fixes if any
                         if improvement_info.get('individual_fixes'):

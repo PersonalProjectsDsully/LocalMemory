@@ -3,12 +3,33 @@ import re
 import math
 from typing import Dict, List, Tuple, Any, Optional, Set
 from pathlib import Path
-import yaml
+try:
+    import yaml
+    YAML_AVAILABLE = True
+except ImportError:
+    YAML_AVAILABLE = False
 from datetime import datetime
 from collections import defaultdict, Counter
-import streamlit as st
+try:
+    import streamlit as st
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+    # Create mock streamlit for testing
+    class MockStreamlit:
+        class session_state:
+            enhanced_search_engine = None
+        def spinner(self, text): 
+            from contextlib import contextmanager
+            @contextmanager
+            def mock_spinner():
+                yield None
+            return mock_spinner()
+        def success(self, text): pass
+        def info(self, text): pass
+    st = MockStreamlit()
 from .llm_utils import _call_llm_api
-from .qa_improvement_system import ReportQASystem, ReportImprovementPipeline, QA_CONFIGS
+from .qa_improvement_system_legacy import ReportQASystem, ReportImprovementPipeline, QA_CONFIGS
 
 class EnhancedIntelligentSearchEngine:
     """
@@ -150,10 +171,13 @@ class EnhancedIntelligentSearchEngine:
             parts = content.split('---', 2)
             if len(parts) >= 3:
                 try:
-                    frontmatter = yaml.safe_load(parts[1]) or {}
+                    if YAML_AVAILABLE:
+                        frontmatter = yaml.safe_load(parts[1]) or {}
+                    else:
+                        frontmatter = {}
                     body = parts[2].strip()
                     return frontmatter, body
-                except yaml.YAMLError:
+                except Exception:
                     pass
         
         return {}, content

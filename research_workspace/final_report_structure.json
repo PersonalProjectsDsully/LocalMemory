@@ -1,0 +1,150 @@
+{
+  "document_id": "final_report",
+  "version": "1.0",
+  "created": "2025-06-01T09:50:31.947719",
+  "last_modified": "2025-06-01T09:50:31.948967",
+  "content_hash": "e8b42af898f2108cc2ac36b46fbca854",
+  "sections": [
+    {
+      "id": "h1_research_report_ai_agents_vs_other_ai_systems",
+      "title": "Research Report: AI Agents vs Other AI Systems",
+      "level": 1,
+      "start_line": 1,
+      "end_line": 91,
+      "char_start": 0,
+      "char_end": 5771,
+      "parent": null,
+      "subsections": [
+        "h2_executive_summary",
+        "h2_define_and_categorize_ai_agents",
+        "h2_review_alternative_ai_methods_and_approaches",
+        "h2_compare_ai_agents_with_other_ai_methods",
+        "h2_gather_realworld_examples_and_case_studies",
+        "h2_prepare_technical_and_detailed_comparison_report",
+        "h2_conclusion"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "h2_executive_summary",
+      "title": "Executive Summary",
+      "level": 2,
+      "start_line": 5,
+      "end_line": 15,
+      "char_start": 127,
+      "char_end": 867,
+      "parent": "h1_research_report_ai_agents_vs_other_ai_systems",
+      "subsections": [],
+      "metadata": {}
+    },
+    {
+      "id": "h2_define_and_categorize_ai_agents",
+      "title": "Define and categorize AI agents",
+      "level": 2,
+      "start_line": 16,
+      "end_line": 32,
+      "char_start": 867,
+      "char_end": 1910,
+      "parent": "h1_research_report_ai_agents_vs_other_ai_systems",
+      "subsections": [
+        "h3_key_findings",
+        "h3_insights"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "h3_key_findings",
+      "title": "Key Findings",
+      "level": 3,
+      "start_line": 78,
+      "end_line": 83,
+      "char_start": 5191,
+      "char_end": 5541,
+      "parent": "h2_prepare_technical_and_detailed_comparison_report",
+      "subsections": [],
+      "metadata": {}
+    },
+    {
+      "id": "h3_insights",
+      "title": "Insights",
+      "level": 3,
+      "start_line": 44,
+      "end_line": 49,
+      "char_start": 2646,
+      "char_end": 2894,
+      "parent": "h2_review_alternative_ai_methods_and_approaches",
+      "subsections": [],
+      "metadata": {}
+    },
+    {
+      "id": "h2_review_alternative_ai_methods_and_approaches",
+      "title": "Review alternative AI methods and approaches",
+      "level": 2,
+      "start_line": 33,
+      "end_line": 49,
+      "char_start": 1910,
+      "char_end": 2894,
+      "parent": "h1_research_report_ai_agents_vs_other_ai_systems",
+      "subsections": [
+        "h3_key_findings",
+        "h3_insights"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "h2_compare_ai_agents_with_other_ai_methods",
+      "title": "Compare AI agents with other AI methods",
+      "level": 2,
+      "start_line": 50,
+      "end_line": 64,
+      "char_start": 2894,
+      "char_end": 4614,
+      "parent": "h1_research_report_ai_agents_vs_other_ai_systems",
+      "subsections": [
+        "h3_key_findings"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "h2_gather_realworld_examples_and_case_studies",
+      "title": "Gather real-world examples and case studies",
+      "level": 2,
+      "start_line": 65,
+      "end_line": 73,
+      "char_start": 4614,
+      "char_end": 5015,
+      "parent": "h1_research_report_ai_agents_vs_other_ai_systems",
+      "subsections": [
+        "h3_key_findings"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "h2_prepare_technical_and_detailed_comparison_report",
+      "title": "Prepare technical and detailed comparison report",
+      "level": 2,
+      "start_line": 74,
+      "end_line": 83,
+      "char_start": 5015,
+      "char_end": 5541,
+      "parent": "h1_research_report_ai_agents_vs_other_ai_systems",
+      "subsections": [
+        "h3_key_findings"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "h2_conclusion",
+      "title": "Conclusion",
+      "level": 2,
+      "start_line": 84,
+      "end_line": 91,
+      "char_start": 5541,
+      "char_end": 5771,
+      "parent": "h1_research_report_ai_agents_vs_other_ai_systems",
+      "subsections": [],
+      "metadata": {}
+    }
+  ],
+  "qa_issues": []
+}

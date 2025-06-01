@@ -19,7 +19,9 @@
       "Bash(rg:*)",
       "Bash(pip3 list:*)",
       "Bash(md5sum:*)",
-      "WebFetch(domain:www.youtube.com)"
+      "WebFetch(domain:www.youtube.com)",
+      "Bash(streamlit --version)",
+      "Bash(touch:*)"
     ],
     "deny": []
   },

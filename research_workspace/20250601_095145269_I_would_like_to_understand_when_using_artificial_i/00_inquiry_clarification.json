@@ -1,0 +1,19 @@
+{
+  "main_topic": "Clarifying research questions for understanding user needs",
+  "implicit_needs": [
+    "Details about specific topics or examples of interest",
+    "Preferred depth and type of information (e.g., case studies, data)",
+    "Intended application or use case for the research",
+    "Any constraints such as time, scope, or format"
+  ],
+  "ambiguities": [
+    "What specific subject or field is the research about?",
+    "What level of detail is expected in the responses?",
+    "Who is the target audience for the research?",
+    "Are there any particular formats or sources preferred?"
+  ],
+  "original_query": "",
+  "query_analysis": {},
+  "clarifying_questions": [],
+  "suggested_refinement": ""
+}

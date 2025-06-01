@@ -1,0 +1,60 @@
+{
+  "original_query": "Generate 3-5 targeted questions that would help clarify:\n- Specific aspects or examples they're interested in\n- Desired depth of information (examples, case studies, statistics)\n- Intended use or application of the research\n- Any constraints or preferences",
+  "query_analysis": {
+    "main_topic": "Clarifying research needs for targeted questions",
+    "implicit_needs": [
+      "Understanding specific areas of interest",
+      "Determining the desired level of detail",
+      "Identifying the purpose of the research",
+      "Recognizing constraints or preferences"
+    ],
+    "ambiguities": [
+      "Type of research or subject matter",
+      "Audience or context for the questions",
+      "Scope and depth of information desired"
+    ]
+  },
+  "clarifying_questions": [
+    {
+      "question": "What specific topics or examples are you most interested in exploring?",
+      "purpose": "To identify the focus areas or subjects of interest",
+      "options": [
+        "Industry trends",
+        "Case studies",
+        "Statistical data",
+        "Historical background"
+      ]
+    },
+    {
+      "question": "How in-depth do you want the information to be (e.g., brief overview, detailed case studies, comprehensive analysis)?",
+      "purpose": "To determine the level of detail required",
+      "options": [
+        "Overview",
+        "Detailed examples",
+        "In-depth analysis",
+        "Statistical summaries"
+      ]
+    },
+    {
+      "question": "What is the intended use or application of this research (e.g., report, presentation, strategic planning)?",
+      "purpose": "To understand how the research will be utilized",
+      "options": [
+        "Academic paper",
+        "Business strategy",
+        "Educational material",
+        "Policy development"
+      ]
+    },
+    {
+      "question": "Are there any specific constraints or preferences I should be aware of (e.g., time frame, data sources, geographic focus)?",
+      "purpose": "To identify any limitations or particular requirements",
+      "options": [
+        "Time constraints",
+        "Data source preferences",
+        "Geographic focus",
+        "Budget limitations"
+      ]
+    }
+  ],
+  "suggested_refinement": "Please specify the main topic or subject area you are researching to help tailor the questions more effectively."
+}

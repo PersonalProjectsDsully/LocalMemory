@@ -1,0 +1,60 @@
+{
+  "original_query": "Generate 3-5 targeted questions that would help clarify: - Specific aspects or examples they're interested in - Desired depth of information (examples, case studies, statistics) - Intended use or application of the research - Any constraints or preferences",
+  "query_analysis": {
+    "main_topic": "Clarifying questions to understand research needs",
+    "implicit_needs": [
+      "Details on specific topics or examples of interest",
+      "Level of detail required (e.g., case studies, statistics)",
+      "Intended application or purpose of the research",
+      "Constraints or preferences such as format, scope, or sources"
+    ],
+    "ambiguities": [
+      "Unclear which subject or field the research pertains to",
+      "Uncertain about the type of information the user prefers",
+      "Lack of specifics on how the research will be used or tailored"
+    ]
+  },
+  "clarifying_questions": [
+    {
+      "question": "What specific topics or examples are you most interested in within this research area?",
+      "purpose": "To understand the particular aspects or cases the user wants to focus on.",
+      "options": [
+        "Industry case studies",
+        "Statistical data",
+        "Real-world examples",
+        "Theoretical frameworks"
+      ]
+    },
+    {
+      "question": "How in-depth do you want the information to be? Are you looking for detailed case studies, statistical analyses, or general overviews?",
+      "purpose": "To determine the desired level of detail and complexity.",
+      "options": [
+        "Detailed case studies",
+        "Statistical data and analysis",
+        "Brief summaries",
+        "Comprehensive reports"
+      ]
+    },
+    {
+      "question": "What is the main goal or application for this research? For example, is it for academic purposes, business decision-making, policy development, or other?",
+      "purpose": "To clarify how the research will be used and tailor the output accordingly.",
+      "options": [
+        "Academic research",
+        "Business strategy",
+        "Policy formulation",
+        "Personal knowledge"
+      ]
+    },
+    {
+      "question": "Are there any specific constraints or preferences I should consider, such as timeframe, sources, or format?",
+      "purpose": "To identify any limitations or preferences that will influence the research approach.",
+      "options": [
+        "Deadline within two weeks",
+        "Prefer peer-reviewed sources",
+        "Require a summarized report",
+        "Include recent data only"
+      ]
+    }
+  ],
+  "suggested_refinement": "Providing more details about the specific topic or context of your research would help in formulating more targeted questions."
+}

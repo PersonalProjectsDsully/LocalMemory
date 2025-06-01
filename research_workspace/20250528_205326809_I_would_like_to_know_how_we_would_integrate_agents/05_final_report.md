@@ -1,7 +1,6 @@
 # Integration of AI Agents with FreshService for MSP Ticket Management
 
-## Section 1
-## Environment Setup & Model Configuration  
+## Section 1: Environment Setup & Model Configuration  
 
 ### LM Studio Installation & Model Configuration  
 To run the QWEN3 30B model with 32K context support, follow these steps:  

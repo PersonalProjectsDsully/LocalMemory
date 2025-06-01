@@ -1,0 +1,63 @@
+{
+  "original_query": "Please walk me through using agents for ai compared to other methods?",
+  "query_analysis": {
+    "main_topic": "Comparison of AI agents with other AI methods",
+    "implicit_needs": [
+      "Understanding specific types of AI agents",
+      "Detailed explanations or usage steps",
+      "Evaluation of advantages and disadvantages"
+    ],
+    "ambiguities": [
+      "Which specific methods are being compared (e.g., rule-based, machine learning, deep learning)?",
+      "Level of detail desired (overview, technical depth, examples)?",
+      "Intended application or context for using these agents?"
+    ]
+  },
+  "clarifying_questions": [
+    {
+      "question": "Are you interested in a general overview of AI agents or specific types and their applications?",
+      "purpose": "To determine the depth and focus of the explanation",
+      "options": [
+        "General overview",
+        "Specific types (e.g., autonomous agents, conversational agents)",
+        "Both"
+      ]
+    },
+    {
+      "question": "Would you like to see real-world examples or case studies demonstrating the use of AI agents?",
+      "purpose": "To understand if concrete examples are needed",
+      "options": [
+        "Yes",
+        "No",
+        "Maybe"
+      ]
+    },
+    {
+      "question": "Are you comparing AI agents to other specific AI methods or approaches?",
+      "purpose": "To clarify what methods are being compared",
+      "options": [
+        "Yes, which methods?",
+        "No, a general comparison"
+      ]
+    },
+    {
+      "question": "What is your intended use or application for this information (e.g., research, implementation, learning)?",
+      "purpose": "To tailor the explanation to their needs",
+      "options": [
+        "Research",
+        "Implementation guidance",
+        "Learning or education"
+      ]
+    },
+    {
+      "question": "Do you have any preferences regarding the technical depth or inclusion of statistics and performance data?",
+      "purpose": "To gauge the level of technical detail required",
+      "options": [
+        "High (detailed, technical)",
+        "Moderate",
+        "Light (overview only)"
+      ]
+    }
+  ],
+  "suggested_refinement": "Specify whether you are seeking a high-level overview or a detailed technical comparison, and clarify the specific methods or applications you're interested in."
+}
