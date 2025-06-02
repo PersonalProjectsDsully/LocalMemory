@@ -17,7 +17,6 @@ class IntelligentSearchEngine:
         self.content_index = {}
         self.entity_index = {}
         self.concept_index = {}
-        self.relationship_map = {}
         
     def index_content(self) -> Dict[str, Any]:
         """
@@ -215,14 +214,14 @@ Respond in valid JSON format:
                     'content': content_data
                 })
         
-        # Remove duplicates and sort by score
-        seen_files = set()
-        unique_results = []
+        # Remove duplicates by keeping highest score per file
+        file_scores = {}
         for result in results:
-            if result['file_key'] not in seen_files:
-                seen_files.add(result['file_key'])
-                unique_results.append(result)
+            file_key = result['file_key']
+            if file_key not in file_scores or result['score'] > file_scores[file_key]['score']:
+                file_scores[file_key] = result
         
+        unique_results = list(file_scores.values())
         unique_results.sort(key=lambda x: x['score'], reverse=True)
         return unique_results[:max_results]
     
@@ -316,11 +315,25 @@ Please provide a clear, comprehensive answer based on the available sources."""
         
         related_scores = {}
         
-        # Score other content based on shared entities and concepts
-        for other_key, other_content in self.content_index.items():
-            if other_key == file_key:
-                continue
-            
+        # Use indexes to find potentially related content efficiently
+        candidate_files = set()
+        
+        # Get files that share entities
+        for entity in current_entities:
+            if entity in self.entity_index:
+                candidate_files.update(self.entity_index[entity])
+        
+        # Get files that share concepts
+        for concept in current_concepts:
+            if concept in self.concept_index:
+                candidate_files.update(self.concept_index[concept])
+        
+        # Remove the current file
+        candidate_files.discard(file_key)
+        
+        # Score only the candidate files
+        for other_key in candidate_files:
+            other_content = self.content_index[other_key]
             other_frontmatter = other_content.get('frontmatter', {})
             other_entities = set(other_frontmatter.get('entities', []))
             other_concepts = set(other_frontmatter.get('concepts', []))

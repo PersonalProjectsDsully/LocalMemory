@@ -831,7 +831,7 @@ if st.session_state.workflow_mode:
                     workflow_persistence.current_session_dir = None
                     
                     # Create a new workflow orchestrator instance to ensure clean state
-                    new_workflow_orchestrator = WorkflowOrchestrator()
+                    new_workflow_orchestrator = WorkflowOrchestrator(query)
                     
                     # Execute the new workflow
                     result = new_workflow_orchestrator.execute_workflow(query)

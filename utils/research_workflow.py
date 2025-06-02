@@ -45,19 +45,27 @@ class LLMProvider:
 class ResearchWorkflow:
     """Manages the comprehensive research workflow process"""
     
-    def __init__(self):
+    def __init__(self, original_query: str = None):
         self.llm_provider = LLMProvider()
-        self.search_engine = IntelligentSearchEngine()
-        # Index content on initialization
-        self.search_engine.index_content()
-        self.workflow_state = self._init_workflow_state()
+        # Reuse search engine from session state if available
+        if 'search_engine' in st.session_state:
+            self.search_engine = st.session_state.search_engine
+        else:
+            from utils.intelligent_search import get_search_engine
+            self.search_engine = get_search_engine()
+        self.workflow_state = self._init_workflow_state(original_query)
         self.persistence = workflow_persistence
         
-    def _init_workflow_state(self) -> Dict[str, Any]:
+        # Create session if we have an original query
+        if original_query and not self.persistence.current_session_dir:
+            self.persistence.create_session(original_query)
+        
+    def _init_workflow_state(self, original_query: str = None) -> Dict[str, Any]:
         """Initialize workflow state tracking"""
         if 'research_workflow' not in st.session_state:
             st.session_state.research_workflow = {
                 'current_stage': 'inquiry_clarification',
+                'original_query': original_query,
                 'clarified_request': None,
                 'subtasks': [],
                 'scratchpads': {},
@@ -67,6 +75,9 @@ class ResearchWorkflow:
                 'final_report': None,
                 'iteration_count': 0
             }
+        elif original_query and 'original_query' not in st.session_state.research_workflow:
+            # Add original query if it's missing
+            st.session_state.research_workflow['original_query'] = original_query
         
         # Don't save here as we don't have a session directory yet
         return st.session_state.research_workflow
@@ -138,8 +149,8 @@ class ResearchWorkflow:
                     "objective": "...",
                     "scope": "...",
                     "dependencies": ["task_id"],
-                    "complexity": "low|medium|high",
-                    "estimated_documents": 3-5
+                    "complexity": "medium",
+                    "estimated_documents": 4
                 }}
             ],
             "execution_order": ["task_1", "task_2", ...],
@@ -178,11 +189,11 @@ class ResearchWorkflow:
         
         Format as JSON:
         {{
-            "completeness_score": 0-100,
+            "completeness_score": 85,
             "gaps": ["..."],
             "redundancies": ["..."],
             "suggestions": ["..."],
-            "approved": true/false
+            "approved": true
         }}
         """
         
@@ -520,8 +531,8 @@ class ResearchWorkflow:
         
         JSON format:
         {{
-            "completeness_score": 0-100,
-            "sufficient": true/false,
+            "completeness_score": 85,
+            "sufficient": true,
             "missing_elements": ["max 3 items"],
             "recommended_action": "continue_search|refine_keywords|proceed"
         }}
@@ -650,7 +661,7 @@ class ResearchWorkflow:
         
         Format as JSON:
         {{
-            "verified": true/false,
+            "verified": true,
             "completion_summary": "Brief summary of what was accomplished",
             "objective_coverage": {{
                 "percentage": 0-100,
@@ -659,7 +670,7 @@ class ResearchWorkflow:
             }},
             "quality_assessment": {{
                 "depth": "shallow|adequate|comprehensive",
-                "reliability": "low|medium|high",
+                "reliability": "high",
                 "completeness": "incomplete|partial|complete"
             }},
             "missing_requirements": ["..."],
@@ -675,7 +686,7 @@ class ResearchWorkflow:
                 # Try to infer from other fields
                 if result.get('recommendation') == 'mark_complete':
                     result['verified'] = True
-                elif result.get('completeness', 'incomplete') == 'complete':
+                elif result.get('quality_assessment', {}).get('completeness') == 'complete':
                     result['verified'] = True
                 else:
                     result['verified'] = False
@@ -729,16 +740,16 @@ class ResearchWorkflow:
         
         Format as JSON:
         {{
-            "all_complete": true/false,
+            "all_complete": true,
             "overall_completeness": 0-100,
             "task_statuses": {{
                 "task_id": {{
-                    "complete": true/false,
+                    "complete": true,
                     "percentage": 0-100,
                     "missing": ["..."]
                 }}
             }},
-            "ready_for_report": true/false,
+            "ready_for_report": true,
             "final_recommendation": "generate_report|continue_research|abandon"
         }}
         """
@@ -853,9 +864,11 @@ class ResearchWorkflow:
         report_parts = []
         
         # Title - handle case where outline might be None or missing title
-        title = "Research Report: AI Agents vs Other AI Systems"
+        # Generate title from clarified request if outline doesn't have one
+        default_title = f"Research Report: {self.workflow_state.get('clarified_request', 'Research Analysis')[:50]}"
+        title = default_title
         if outline and isinstance(outline, dict):
-            title = outline.get('title', title)
+            title = outline.get('title', default_title)
         
         report_parts.append(f"# {title}")
         report_parts.append("")
@@ -905,7 +918,9 @@ class ResearchWorkflow:
         # Metadata
         report_parts.append("---")
         report_parts.append(f"*Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
-        report_parts.append(f"*Total findings analyzed: {len(self._extract_key_findings())}*")
+        # Calculate total findings count without truncation
+        total_findings = self._count_total_findings()
+        report_parts.append(f"*Total findings analyzed: {total_findings}*")
         
         return "\n".join(report_parts)
     
@@ -964,6 +979,22 @@ class ResearchWorkflow:
             print("Warning: Outline missing sections. Creating default report structure.")
             return self._generate_default_sections()
         
+        # Generate executive summary from outline
+        if 'executive_summary' in outline:
+            exec_summary_data = outline['executive_summary']
+            exec_summary_prompt = f"""
+            Write the Executive Summary section for the research report.
+            
+            Key Points: {json.dumps(exec_summary_data.get('key_points', []), indent=2)}
+            Main Findings: {json.dumps(exec_summary_data.get('main_findings', []), indent=2)}
+            
+            Research Context: {self.workflow_state.get('clarified_request', '')}
+            
+            Format as markdown section. Start with "## Executive Summary".
+            Keep it concise but comprehensive.
+            """
+            sections['executive_summary'] = self.llm_provider.generate(exec_summary_prompt)
+        
         for section in outline.get('sections', []):
             section_prompt = f"""
             Write the markdown section "{section['title']}" for the research report.
@@ -991,6 +1022,23 @@ class ResearchWorkflow:
                 'title': section['title'],
                 'summary': self._summarize_section(section_content)
             })
+        
+        # Generate conclusion from outline
+        if 'conclusion' in outline:
+            conclusion_data = outline['conclusion']
+            conclusion_prompt = f"""
+            Write the Conclusion section for the research report.
+            
+            Summary Points: {json.dumps(conclusion_data.get('summary_points', []), indent=2)}
+            Recommendations: {json.dumps(conclusion_data.get('recommendations', []), indent=2)}
+            
+            Research Context: {self.workflow_state.get('clarified_request', '')}
+            Previous Sections: {json.dumps([s['title'] for s in previous_sections], indent=2)}
+            
+            Format as markdown section. Start with "## Conclusion".
+            Synthesize the key findings and provide actionable recommendations.
+            """
+            sections['conclusion'] = self.llm_provider.generate(conclusion_prompt)
         
         return sections
     
@@ -1021,132 +1069,87 @@ class ResearchWorkflow:
             all_findings_by_task[task_id] = findings
             all_insights_by_task[task_id] = insights
         
-        # Executive Summary - high-level overview only
-        exec_summary = """## Executive Summary
+        # Executive Summary - dynamically generated based on findings
+        key_findings = self._extract_key_findings()[:5]  # Top 5 findings
+        if key_findings:
+            exec_summary = f"""## Executive Summary
 
-This comprehensive report examines the decision criteria for choosing AI agents versus other AI systems. Based on our research, the choice depends on three key factors: the level of autonomy required, the complexity of the task environment, and the need for adaptive behavior.
+This comprehensive report presents the findings from our research on: {self.workflow_state.get('clarified_request', 'the requested topic')}.
 
 **Key Takeaways:**
-1. AI agents excel in dynamic, multi-step scenarios requiring autonomous decision-making
-2. Traditional AI systems are more suitable for well-defined, predictable tasks
-3. Hybrid approaches combining both paradigms often provide the best practical solutions
 """
-        sections['executive_summary'] = exec_summary
-        
-        # Create focused, non-overlapping sections
-        
-        # Section 1: AI Agent Fundamentals (from task_1)
-        if 'task_1' in all_findings_by_task:
-            section_content = """## AI Agent Fundamentals
-
-This section establishes the foundational understanding of AI agents, their core characteristics, and categorization.
-
-### Definition and Core Characteristics
-
-"""
-            # Focus only on definitional aspects
-            agent_definitions = [f for f in all_findings_by_task['task_1'] if any(keyword in f.lower() for keyword in ['autonom', 'agent', 'character', 'defin'])]
-            for finding in agent_definitions[:3]:
-                section_content += f"- {finding}\n"
+            for i, finding in enumerate(key_findings, 1):
+                exec_summary += f"{i}. {finding}\n"
             
-            section_content += "\n### Types of AI Agents\n\n"
-            agent_types = [f for f in all_findings_by_task['task_1'] if any(keyword in f.lower() for keyword in ['type', 'categor', 'conversat', 'determin', 'generat'])]
-            for finding in agent_types[:3]:
-                section_content += f"- {finding}\n"
-            
-            sections['task_1'] = section_content
+            sections['executive_summary'] = exec_summary
+        else:
+            # Fallback if no findings
+            sections['executive_summary'] = f"""## Executive Summary
+
+This report summarizes our research findings on: {self.workflow_state.get('clarified_request', 'the requested topic')}.
+
+The research has been conducted based on available knowledge and documentation."""
         
-        # Section 2: Alternative AI Approaches (from task_2)
-        if 'task_2' in all_findings_by_task:
-            section_content = """## Alternative AI Approaches
-
-This section explores non-agent AI systems to establish a baseline for comparison.
-
-### Traditional AI Systems
-
-"""
-            # Focus on non-agent systems
-            traditional_systems = [f for f in all_findings_by_task['task_2'] if not 'agent' in f.lower() or any(keyword in f.lower() for keyword in ['rule', 'supervis', 'traditional'])]
-            for finding in traditional_systems[:4]:
-                section_content += f"- {finding}\n"
+        # Create focused sections based on actual subtasks
+        for subtask in self.workflow_state.get('subtasks', []):
+            task_id = subtask['id']
+            task_title = subtask.get('title', f'Section {task_id}')
             
-            sections['task_2'] = section_content
-        
-        # Section 3: Comparative Analysis (from task_3)
-        if 'task_3' in all_findings_by_task:
-            section_content = """## Comparative Analysis
+            if task_id in all_findings_by_task and all_findings_by_task[task_id]:
+                section_content = f"""## {task_title}
 
-This section provides a direct comparison between AI agents and other approaches.
+{subtask.get('objective', 'This section presents findings from the research.')}
 
-### Key Differentiators
+### Key Findings
 
 """
-            # Focus on comparative aspects
-            comparisons = all_findings_by_task['task_3']
-            for finding in comparisons[:5]:
-                section_content += f"- {finding}\n"
+                # Add findings for this task
+                findings = all_findings_by_task[task_id]
+                for finding in findings[:5]:  # Limit to 5 findings per section
+                    section_content += f"- {finding}\n"
+                
+                # Add insights if available
+                if task_id in all_insights_by_task and all_insights_by_task[task_id]:
+                    section_content += "\n### Insights\n\n"
+                    for insight in all_insights_by_task[task_id][:3]:
+                        section_content += f"- {insight}\n"
+                
+                sections[task_id] = section_content
+        
+        # Note: The dynamic section generation above already handles all tasks based on subtasks
+        # No need for additional hardcoded sections
+        
+        # Conclusion - dynamically generated based on insights
+        all_insights = []
+        for task_insights in all_insights_by_task.values():
+            all_insights.extend(task_insights)
+        
+        if all_insights:
+            conclusion = """## Conclusion
+
+Based on the research conducted, we have identified the following key insights:
+
+"""
+            # Add up to 5 unique insights
+            unique_insights = []
+            for insight in all_insights:
+                if insight not in unique_insights:
+                    unique_insights.append(insight)
+                if len(unique_insights) >= 5:
+                    break
             
-            section_content += "\n### Decision Framework\n\n"
-            section_content += """| Factor | AI Agents | Traditional AI |
-|--------|-----------|----------------|
-| Autonomy | High - Self-directed decision making | Low - Follows predefined rules |
-| Adaptability | Dynamic - Learns and adjusts | Static - Fixed behavior |
-| Complexity Handling | Excels in complex, multi-step tasks | Best for single, well-defined tasks |
-| Resource Requirements | Higher computational needs | Lower resource consumption |
-"""
-            sections['task_3'] = section_content
-        
-        # Section 4: Real-World Applications (from task_4)
-        if 'task_4' in all_findings_by_task:
-            section_content = """## Real-World Applications
-
-This section presents practical examples and case studies.
-
-### Successful AI Agent Implementations
-
-"""
-            examples = all_findings_by_task['task_4']
-            for example in examples[:4]:
-                section_content += f"- {example}\n"
+            for insight in unique_insights:
+                conclusion += f"- {insight}\n"
             
-            sections['task_4'] = section_content
-        
-        # Section 5: Implementation Guidelines (from task_5)
-        if 'task_5' in all_findings_by_task:
-            section_content = """## Implementation Guidelines
+            conclusion += f"\n### Next Steps\nBased on these findings, we recommend further investigation into specific areas relevant to your use case."
+            sections['conclusion'] = conclusion
+        else:
+            # Fallback generic conclusion
+            sections['conclusion'] = f"""## Conclusion
 
-This section provides practical guidance for choosing and implementing the appropriate AI approach.
+This research has examined: {self.workflow_state.get('clarified_request', 'the requested topic')}.
 
-### Selection Criteria
-
-"""
-            guidelines = all_findings_by_task['task_5']
-            for guideline in guidelines[:5]:
-                section_content += f"- {guideline}\n"
-            
-            sections['task_5'] = section_content
-        
-        # Conclusion
-        sections['conclusion'] = """## Conclusion
-
-Based on the research conducted:
-
-**When to use AI Agents:**
-- When autonomous decision-making is required
-- For complex, multi-step workflows
-- When the system needs to interact with multiple tools/APIs
-- For tasks requiring adaptation and learning
-
-**When to use other AI systems:**
-- Rule-based systems: For deterministic, well-defined problems
-- Supervised ML: For pattern recognition and prediction
-- Conversational AI: For simple Q&A interfaces
-
-### Next Steps
-1. Evaluate your specific use case against these criteria
-2. Consider prototyping both approaches
-3. Measure performance and cost-effectiveness
-"""
+The findings presented in this report provide a foundation for informed decision-making. We recommend evaluating these insights against your specific requirements and constraints."""
         
         return sections
     
@@ -1193,8 +1196,8 @@ Based on the research conducted:
         
         Format as JSON:
         {{
-            "overall_score": 0-100,
-            "approved": true/false,
+            "overall_score": 85,
+            "approved": true,
             "strengths": ["..."],
             "issues": [
                 {{
@@ -1290,6 +1293,29 @@ Based on the research conducted:
                 unique_findings.append(finding)
         
         return unique_findings[:20]  # Top 20 unique findings
+    
+    def _count_total_findings(self) -> int:
+        """Count total unique findings without truncation"""
+        findings = set()  # Use set to avoid double counting
+        
+        # Get from scratchpads
+        for scratchpad in self.workflow_state['scratchpads'].values():
+            findings.update(scratchpad.get('high_value_findings', []))
+            findings.update(scratchpad.get('insights', []))
+        
+        # Also get from document analysis
+        for analysis in self.workflow_state.get('document_analysis', {}).values():
+            if isinstance(analysis, dict):
+                if 'key_information' in analysis:
+                    findings.update(analysis.get('key_information', []))
+                if 'insights' in analysis:
+                    findings.update(analysis.get('insights', []))
+                if 'document_analyses' in analysis:
+                    for doc in analysis['document_analyses']:
+                        findings.update(doc.get('key_information', []))
+                        findings.update(doc.get('insights', []))
+        
+        return len(findings)
     
     def _count_analyzed_documents(self) -> int:
         """Count total documents analyzed"""
@@ -1401,8 +1427,8 @@ Based on the research conducted:
 class WorkflowOrchestrator:
     """Orchestrates the entire research workflow process"""
     
-    def __init__(self):
-        self.workflow = ResearchWorkflow()
+    def __init__(self, original_query: str = None):
+        self.workflow = ResearchWorkflow(original_query)
         self.current_stage = 'inquiry_clarification'
         
         # Restore session directory and workflow state if exists

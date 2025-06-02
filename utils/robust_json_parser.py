@@ -13,7 +13,7 @@ from datetime import datetime
 class RobustJSONParser:
     """A robust parser for extracting JSON from LLM responses"""
     
-    def __init__(self, debug_mode: bool = True):
+    def __init__(self, debug_mode: bool = False):
         self.debug_mode = debug_mode
         self.debug_file = Path("research_workspace/json_parser_debug.log")
         if debug_mode:
