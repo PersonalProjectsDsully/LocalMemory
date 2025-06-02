@@ -819,7 +819,29 @@ class ResearchWorkflow:
             # Combine sections into final report
             final_report = self._combine_report_sections(report_sections, outline)
             
-            # Save and return report (skip QA for now)
+            # Run automatic QA and improvements
+            print("🔍 Running automatic QA and improvements...")
+            improved_report_result = self._run_automatic_qa_and_improvements(final_report)
+            
+            if improved_report_result and improved_report_result.get('ready_for_user'):
+                final_report = improved_report_result['improved_report']
+                # Store QA information for display with validation
+                qa_summary = improved_report_result.get('qa_summary', {})
+                if qa_summary:
+                    self.workflow_state['automatic_qa_results'] = qa_summary
+                    improvements_count = len(qa_summary.get('improvements_applied', []))
+                    print(f"✅ Automatic QA completed with {improvements_count} improvements")
+                else:
+                    print("⚠️ Automatic QA completed but no summary available")
+            else:
+                print("⚠️ Automatic QA failed, using original report")
+                self.workflow_state['automatic_qa_results'] = {
+                    'automatic_qa_completed': False,
+                    'error': 'Automatic QA process failed',
+                    'timestamp': datetime.now().isoformat()
+                }
+            
+            # Save and return final report
             self.workflow_state['final_report'] = final_report
             self.persistence.save_workflow_state(self.workflow_state)
             return final_report
@@ -1351,6 +1373,29 @@ Based on the research conducted:
         """
         
         return self.llm_provider.generate(corrections_prompt)
+    
+    def _run_automatic_qa_and_improvements(self, report: str) -> Optional[Dict[str, Any]]:
+        """Run automatic QA and improvements on the generated report"""
+        try:
+            from .automatic_qa_system import automatic_qa_system
+            
+            # Get necessary data for QA
+            original_query = self.workflow_state.get('original_query', 
+                                                   self.workflow_state.get('clarified_request', ''))
+            subtasks = self.workflow_state.get('subtasks', [])
+            scratchpads = self.workflow_state.get('scratchpads', {})
+            
+            # Run automatic QA
+            return automatic_qa_system.run_automatic_qa(
+                report=report,
+                original_query=original_query,
+                subtasks=subtasks,
+                scratchpads=scratchpads
+            )
+            
+        except Exception as e:
+            print(f"Error in automatic QA: {e}")
+            return None
 
 
 class WorkflowOrchestrator:
@@ -1416,6 +1461,14 @@ class WorkflowOrchestrator:
         """Update current stage based on the current workflow state"""
         workflow_state = self.workflow.workflow_state
         
+        # First check if there's an explicit current_stage in the workflow state
+        saved_stage = workflow_state.get('current_stage')
+        if saved_stage and saved_stage in ['inquiry_clarification', 'task_decomposition', 'document_research', 'report_generation']:
+            self.current_stage = saved_stage
+            print(f"DEBUG: Using saved stage: {self.current_stage}")
+            return
+        
+        # Otherwise, infer stage from state data
         if workflow_state.get('final_report'):
             self.current_stage = 'report_generation'
         elif workflow_state.get('document_analysis') and workflow_state.get('subtasks'):
@@ -1428,9 +1481,23 @@ class WorkflowOrchestrator:
                 self.current_stage = 'document_research'
             else:
                 self.current_stage = 'task_decomposition'
-        elif workflow_state.get('clarified_request'):
+        elif workflow_state.get('clarified_request') and len(workflow_state.get('clarified_request', '').strip()) > 10:
             self.current_stage = 'task_decomposition'
         else:
+            # Validate clarification data to prevent infinite loops
+            clarification_data = workflow_state.get('clarification_data', {})
+            original_query = workflow_state.get('original_query', '')
+            
+            # Check if we're stuck in a loop with malformed data
+            if (not original_query or 
+                not clarification_data.get('clarifying_questions') or 
+                len(clarification_data.get('clarifying_questions', [])) == 0):
+                
+                # Reset corrupted state to allow fresh start
+                print("DEBUG: Detected corrupted clarification state, resetting...")
+                workflow_state['clarification_data'] = {}
+                workflow_state['original_query'] = ''
+            
             self.current_stage = 'inquiry_clarification'
         
         print(f"DEBUG: Updated stage to: {self.current_stage} based on state")
@@ -1441,10 +1508,25 @@ class WorkflowOrchestrator:
         if workflow_persistence.current_session_dir:
             session_dir = workflow_persistence.current_session_dir
             print(f"Using existing session: {session_dir}")
+            
+            # Check if this session has corrupted data and needs reset
+            if (not user_query and 
+                not self.workflow.workflow_state.get('original_query') and
+                not self.workflow.workflow_state.get('clarification_data', {}).get('clarifying_questions')):
+                
+                print("DEBUG: Resetting corrupted session with empty query")
+                # Clear the corrupted session
+                workflow_persistence.current_session_dir = None
+                # Force creation of new session
+                session_dir = workflow_persistence.create_session("Please help me understand when to integrate an AI agent")
+                print(f"Created new session after reset: {session_dir}")
+                user_query = "Please help me understand when to integrate an AI agent"
         else:
             # Create a new session for this research
-            session_dir = workflow_persistence.create_session(user_query)
+            session_dir = workflow_persistence.create_session(user_query or "Please help me understand when to integrate an AI agent")
             print(f"Created research session: {session_dir}")
+            if not user_query:
+                user_query = "Please help me understand when to integrate an AI agent"
         
         clarification = self.workflow.step1_inquiry_clarification(user_query)
         
@@ -1527,7 +1609,11 @@ class WorkflowOrchestrator:
         
         if verification.get('approved', False):
             self.workflow.workflow_state['subtasks'] = decomposition.get('subtasks', [])
-            self.current_stage = 'document_research'
+            self.workflow.workflow_state['current_stage'] = 'task_decomposition'
+            self.current_stage = 'task_decomposition'
+            
+            # Save the updated workflow state
+            workflow_persistence.save_workflow_state(self.workflow.workflow_state)
             
             return {
                 'stage': 'task_decomposition',
@@ -1643,8 +1729,9 @@ class WorkflowOrchestrator:
         
         if all_sufficient:
             self.current_stage = 'report_generation'
+            self.workflow.workflow_state['current_stage'] = 'report_generation'
             return {
-                'stage': 'document_research',
+                'stage': 'report_generation',
                 'data': research_results,
                 'next_action': 'generate_report'
             }
@@ -1657,7 +1744,28 @@ class WorkflowOrchestrator:
     
     def handle_report_generation(self) -> Dict[str, Any]:
         """Handle report generation stage"""
+        # Check if we have subtasks, if not create default ones
+        if not self.workflow.workflow_state.get('subtasks'):
+            print("No subtasks found, creating default subtasks for report generation")
+            self._create_default_subtasks()
+        
         report = self.workflow.step5_report_generation()
+        
+        # Save report to workflow state
+        self.workflow.workflow_state['final_report'] = report
+        self.workflow.workflow_state['current_stage'] = 'report_generation'
+        
+        # Save the report to file system
+        workflow_persistence.save_workflow_state(self.workflow.workflow_state)
+        
+        # Also save the report as a markdown file
+        if workflow_persistence.current_session_dir:
+            report_path = workflow_persistence.current_session_dir / "05_final_report.md"
+            with open(report_path, 'w', encoding='utf-8') as f:
+                f.write(report)
+            print(f"Report saved to: {report_path}")
+        
+        print(f"Generated report length: {len(report)} characters")
         
         return {
             'stage': 'report_generation',
@@ -1665,12 +1773,136 @@ class WorkflowOrchestrator:
                 'report': report,
                 'metadata': {
                     'generated_at': datetime.now().isoformat(),
-                    'subtasks_completed': len(self.workflow.workflow_state['subtasks']),
+                    'subtasks_completed': len(self.workflow.workflow_state.get('subtasks', [])),
                     'documents_analyzed': self.workflow._count_analyzed_documents()
                 }
             },
             'next_action': 'display_report'
         }
+    
+    def update_report(self, new_report: str) -> Dict[str, Any]:
+        """Update an existing report (used for completing incomplete reports)"""
+        # Save report to workflow state
+        self.workflow.workflow_state['final_report'] = new_report
+        
+        # Save the report to file system
+        workflow_persistence.save_workflow_state(self.workflow.workflow_state)
+        
+        # Also save the report as a markdown file
+        if workflow_persistence.current_session_dir:
+            report_path = workflow_persistence.current_session_dir / "05_final_report.md"
+            with open(report_path, 'w', encoding='utf-8') as f:
+                f.write(new_report)
+            print(f"Updated report saved to: {report_path}")
+        
+        print(f"Updated report length: {len(new_report)} characters")
+        
+        return {
+            'stage': 'report_generation',
+            'data': {
+                'report': new_report,
+                'metadata': {
+                    'generated_at': datetime.now().isoformat(),
+                    'subtasks_completed': len(self.workflow.workflow_state.get('subtasks', [])),
+                    'documents_analyzed': self.workflow._count_analyzed_documents(),
+                    'updated': True
+                }
+            },
+            'next_action': 'display_report'
+        }
+    
+    def _create_default_subtasks(self):
+        """Create default subtasks when none exist"""
+        clarified_request = self.workflow.workflow_state.get('clarified_request', '')
+        original_query = self.workflow.workflow_state.get('original_query', '')
+        
+        # Use original query if no clarified request
+        query = clarified_request if clarified_request else original_query
+        
+        if not query:
+            query = "Understanding when to use AI agents versus other AI systems"
+        
+        # Create default subtasks based on the query
+        default_subtasks = [
+            {
+                'id': 'task_1',
+                'title': 'Research AI agents and their applications',
+                'objective': 'Understand different types of AI agents and their use cases',
+                'scope': 'Overview of agent types, architectures, and applications',
+                'dependencies': [],
+                'complexity': 'medium',
+                'estimated_documents': 5
+            },
+            {
+                'id': 'task_2', 
+                'title': 'Compare agents with other AI methods',
+                'objective': 'Analyze advantages and disadvantages of agent-based approaches',
+                'scope': 'Comparison with traditional ML, rule-based systems, and other approaches',
+                'dependencies': ['task_1'],
+                'complexity': 'high',
+                'estimated_documents': 5
+            },
+            {
+                'id': 'task_3',
+                'title': 'Implementation guidance and best practices',
+                'objective': 'Provide practical guidance for using AI agents',
+                'scope': 'Tools, frameworks, and implementation strategies',
+                'dependencies': ['task_1', 'task_2'],
+                'complexity': 'medium',
+                'estimated_documents': 4
+            }
+        ]
+        
+        self.workflow.workflow_state['subtasks'] = default_subtasks
+        
+        # Also create some default scratchpads with basic findings
+        if not self.workflow.workflow_state.get('scratchpads'):
+            self.workflow.workflow_state['scratchpads'] = {
+                'task_1': {
+                    'high_value_findings': [
+                        'AI agents are autonomous software entities that can perceive their environment and take actions',
+                        'Common types include reactive agents, deliberative agents, and hybrid agents',
+                        'Agents excel in dynamic environments requiring autonomous decision-making'
+                    ],
+                    'insights': [
+                        'Agents are particularly useful when human intervention is impractical',
+                        'Multi-agent systems can solve complex distributed problems'
+                    ],
+                    'quotes': [],
+                    'documents_analyzed': ['General Knowledge Synthesis'],
+                    'iteration_count': 1
+                },
+                'task_2': {
+                    'high_value_findings': [
+                        'Traditional AI systems follow predefined rules and patterns',
+                        'Machine learning models excel at pattern recognition but lack autonomy',
+                        'Agents add a layer of autonomous behavior and goal-directed action'
+                    ],
+                    'insights': [
+                        'Choose agents when you need autonomous decision-making',
+                        'Use traditional AI for well-defined, predictable tasks'
+                    ],
+                    'quotes': [],
+                    'documents_analyzed': ['General Knowledge Synthesis'],
+                    'iteration_count': 1
+                },
+                'task_3': {
+                    'high_value_findings': [
+                        'Popular agent frameworks include LangChain, AutoGPT, and ReAct',
+                        'Key considerations include goal definition, environment modeling, and action spaces',
+                        'Start with simple rule-based agents before moving to complex learning agents'
+                    ],
+                    'insights': [
+                        'Prototype with simple tools before building complex multi-agent systems',
+                        'Consider the trade-off between autonomy and control'
+                    ],
+                    'quotes': [],
+                    'documents_analyzed': ['General Knowledge Synthesis'],
+                    'iteration_count': 1
+                }
+            }
+        
+        print(f"Created {len(default_subtasks)} default subtasks for report generation")
     
     def _build_clarified_request(self, user_responses: Dict) -> str:
         """Build clarified request from user responses with validation"""

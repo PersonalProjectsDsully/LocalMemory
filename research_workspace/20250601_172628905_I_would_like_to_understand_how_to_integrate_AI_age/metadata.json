@@ -1,0 +1,13 @@
+{
+  "session_id": "20250601_172628905_I_would_like_to_understand_how_to_integrate_AI_age",
+  "created_at": "2025-06-01T17:26:28.907261",
+  "original_query": "I would like to understand how to integrate AI agents with our FreshService for our IT Team to help them with tickets.",
+  "status": "completed",
+  "last_updated": "2025-06-01T17:26:28.973807",
+  "progress": {
+    "clarified": true,
+    "tasks_defined": true,
+    "research_complete": true,
+    "report_generated": true
+  }
+}

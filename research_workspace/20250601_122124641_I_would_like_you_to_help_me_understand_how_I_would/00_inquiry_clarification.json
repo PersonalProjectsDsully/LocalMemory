@@ -1,0 +1,62 @@
+{
+  "original_query": "Generate 3-5 targeted questions that would help clarify:\n- Specific aspects or examples they're interested in\n- Desired depth of information (examples, case studies, statistics)\n- Intended use or application of the research\n- Any constraints or preferences",
+  "query_analysis": {
+    "main_topic": "Clarifying research needs for targeted questions",
+    "implicit_needs": [
+      "Understanding the user's specific interests",
+      "Determining the level of detail required",
+      "Identifying the purpose of the research",
+      "Recognizing user constraints or preferences"
+    ],
+    "ambiguities": [
+      "What specific subject or field the research pertains to",
+      "Type of examples or case studies preferred",
+      "Scope or context of intended application",
+      "Any particular constraints (e.g., time, resources)"
+    ]
+  },
+  "clarifying_questions": [
+    {
+      "question": "What specific topic or subject area should the questions focus on?",
+      "purpose": "To identify the main subject of interest for targeted questions.",
+      "options": [
+        "Technology",
+        "Healthcare",
+        "Education",
+        "Business",
+        "Other"
+      ]
+    },
+    {
+      "question": "Are you looking for detailed case studies, statistical data, or general overviews?",
+      "purpose": "To determine the desired depth of information.",
+      "options": [
+        "Case studies",
+        "Statistics",
+        "General overview",
+        "Examples"
+      ]
+    },
+    {
+      "question": "How do you plan to use this research—are you informing a project, making decisions, or another purpose?",
+      "purpose": "To understand the application of the research.",
+      "options": [
+        "Informing a project",
+        "Supporting decision-making",
+        "Academic research",
+        "Other"
+      ]
+    },
+    {
+      "question": "Do you have any constraints or preferences, such as a specific timeframe or format?",
+      "purpose": "To identify any practical limitations or format preferences.",
+      "options": [
+        "Time constraints",
+        "Format preferences (e.g., report, presentation)",
+        "Resource limitations",
+        "None"
+      ]
+    }
+  ],
+  "suggested_refinement": "Please specify the subject area and the type of information or examples you are most interested in to help tailor the questions further."
+}

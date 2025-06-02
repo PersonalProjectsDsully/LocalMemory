@@ -1,0 +1,13 @@
+{
+  "session_id": "20250601_193923249_Tell_me_the_difference_between_different_types_of",
+  "created_at": "2025-06-01T19:39:23.249667",
+  "original_query": "Tell me the difference between different types of AI Agents. ",
+  "status": "initializing",
+  "last_updated": "2025-06-01T19:39:27.774311",
+  "progress": {
+    "clarified": false,
+    "tasks_defined": false,
+    "research_complete": false,
+    "report_generated": false
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "original_query": "I would like to understand how to integrate AI agents with our FreshService for our IT Team to help them with tickets.",
+  "query_analysis": {
+    "main_topic": "Integration of AI agents with FreshService for IT ticket management",
+    "implicit_needs": [
+      "Implementation steps or methods",
+      "Examples or case studies of similar integrations",
+      "Benefits or expected outcomes",
+      "Technical requirements or constraints"
+    ],
+    "ambiguities": [
+      "Type of AI agents (pre-built, custom-developed)",
+      "Level of detail needed (overview vs. technical guide)",
+      "Specific goals (automation, improved response time, analytics)"
+    ]
+  },
+  "clarifying_questions": [
+    {
+      "question": "Are you interested in specific types of AI agents, such as chatbots, predictive analytics, or automation workflows?",
+      "purpose": "To determine which AI functionalities to focus on for integration",
+      "options": [
+        "Chatbots for ticket handling",
+        "Predictive analytics for ticket prioritization",
+        "Automation workflows for ticket routing",
+        "All of the above"
+      ]
+    },
+    {
+      "question": "Would you like to see case studies or examples of similar organizations successfully integrating AI with FreshService?",
+      "purpose": "To assess the level of contextual detail and practical insights needed",
+      "options": [
+        "Yes, detailed case studies",
+        "Brief examples",
+        "No, technical overview only"
+      ]
+    },
+    {
+      "question": "What is your preferred level of technical detail—high-level overview, step-by-step implementation, or technical documentation?",
+      "purpose": "To tailor the depth of information provided",
+      "options": [
+        "High-level overview",
+        "Step-by-step guide",
+        "Technical API documentation"
+      ]
+    },
+    {
+      "question": "Are there specific constraints or requirements, such as preferred AI platforms, budget limitations, or existing systems to integrate with?",
+      "purpose": "To identify any constraints or specific needs that could influence the solution",
+      "options": [
+        "Yes, please specify",
+        "No, open to suggestions"
+      ]
+    },
+    {
+      "question": "What are the primary goals you want to achieve with AI integration—improved ticket response time, reduced workload, better analytics, or others?",
+      "purpose": "To understand the main objectives to focus the research",
+      "options": [
+        "Faster ticket resolution",
+        "Reduced manual workload",
+        "Enhanced reporting and analytics",
+        "Other (please specify)"
+      ]
+    }
+  ],
+  "suggested_refinement": "Specify the key functionalities or outcomes you aim to achieve with AI integration in FreshService to receive more targeted guidance."
+}

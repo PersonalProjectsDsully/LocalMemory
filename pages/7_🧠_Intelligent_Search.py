@@ -3,20 +3,177 @@ import json
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
+import time
 from utils.intelligent_search_enhanced import EnhancedIntelligentSearchEngine
 from utils.batch_intelligence_processor import process_existing_content
 from utils.session_state_manager import initialize_session_state
 from utils.settings_manager import settings_manager
-from utils.research_workflow import ResearchWorkflow, WorkflowOrchestrator
+try:
+    from utils.research_workflow import ResearchWorkflow, WorkflowOrchestrator
+except ImportError as e:
+    st.error(f"Import error: {e}")
+    st.error("Please restart the Streamlit app to reload the modules.")
+    st.stop()
 from utils.workflow_persistence import workflow_persistence
 from utils.workflow_tracker import workflow_tracker
 from utils.progress_reporter import ProgressReporter, set_progress_reporter
+from utils.llm_utils import call_llm
 
 st.set_page_config(
     page_title="Intelligent Search - Personal Knowledge Base",
     page_icon="🧠",
     layout="wide"
 )
+
+def _is_report_incomplete(report_text: str) -> bool:
+    """Detect if a report is incomplete based on various indicators"""
+    if not report_text or len(report_text.strip()) < 500:
+        print(f"DEBUG: Report too short: {len(report_text.strip()) if report_text else 0} chars")
+        return True
+    
+    stripped_text = report_text.strip()
+    last_50_chars = stripped_text[-50:]
+    print(f"DEBUG: Last 50 chars: '{last_50_chars}'")
+    
+    # Check for incomplete sentences or abrupt endings
+    incomplete_indicators = [
+        # Incomplete sentences
+        stripped_text.endswith('('),
+        stripped_text.endswith(','),
+        stripped_text.endswith('and'),
+        stripped_text.endswith('or'),
+        stripped_text.endswith('the'),
+        stripped_text.endswith('to'),
+        stripped_text.endswith('for'),
+        stripped_text.endswith('with'),
+        stripped_text.endswith('in'),
+        stripped_text.endswith('on'),
+        stripped_text.endswith('at'),
+        stripped_text.endswith('by'),
+        stripped_text.endswith('—'),  # Em dash
+        stripped_text.endswith('-'),  # Regular dash
+        stripped_text.endswith('–'),  # En dash
+        stripped_text.endswith(':'),  # Colon without content after
+        
+        # Incomplete sections
+        "Step-by-Step Guide" in report_text and not report_text.count("##") >= 4,
+        "Implementation" in report_text and len(report_text.split("Implementation")[-1]) < 500,
+        
+        # Incomplete table (starts table but doesn't finish it)
+        report_text.count('|') > 0 and stripped_text.endswith(('|', '—', '-', '–')),
+        
+        # Table header without body
+        "Factor" in report_text and "Comments" in report_text and report_text.count('\n') - report_text.rfind("Comments") < 5,
+        
+        # Missing conclusion
+        not any(conclusion in report_text.lower() for conclusion in ["conclusion", "summary", "next steps", "recommendations"]),
+        
+        # Very short for a comprehensive report
+        len(stripped_text) < 2000,
+    ]
+    
+    # Debug each indicator
+    indicator_names = [
+        "ends with '('", "ends with ','", "ends with 'and'", "ends with 'or'", "ends with 'the'",
+        "ends with 'to'", "ends with 'for'", "ends with 'with'", "ends with 'in'", "ends with 'on'",
+        "ends with 'at'", "ends with 'by'", "ends with '—'", "ends with '-'", "ends with '–'", "ends with ':'",
+        "incomplete step guide", "incomplete implementation", "incomplete table", "incomplete table header",
+        "missing conclusion", "too short overall"
+    ]
+    
+    triggered_indicators = []
+    for i, indicator in enumerate(incomplete_indicators):
+        if indicator:
+            triggered_indicators.append(indicator_names[i])
+            print(f"DEBUG: Triggered indicator: {indicator_names[i]}")
+    
+    result = any(incomplete_indicators)
+    print(f"DEBUG: Overall incomplete result: {result}")
+    print(f"DEBUG: Triggered indicators: {triggered_indicators}")
+    
+    return result
+
+def _complete_incomplete_report(partial_report: str, workflow_orchestrator) -> str:
+    """Complete an incomplete report by calling the LLM to continue generation"""
+    try:
+        from utils.llm_utils import call_llm
+        
+        print(f"DEBUG: Starting report completion. Original length: {len(partial_report)}")
+        
+        # Extract context about where the report left off
+        last_lines = partial_report.strip().split('\n')[-10:]  # Last 10 lines for context
+        context = '\n'.join(last_lines)
+        
+        # Get research data for context
+        scratchpads = workflow_orchestrator.workflow.workflow_state.get('scratchpads', {})
+        subtasks = workflow_orchestrator.workflow.workflow_state.get('subtasks', [])
+        
+        # Create a summarized context of available research
+        research_context = []
+        for task in subtasks:
+            task_id = task['id']
+            if task_id in scratchpads:
+                findings = scratchpads[task_id].get('high_value_findings', [])
+                if findings:
+                    research_context.append(f"**{task['title']}:**")
+                    research_context.extend([f"- {finding}" for finding in findings[:3]])
+        
+        research_summary = '\n'.join(research_context[:20])  # Limit context size
+        
+        completion_prompt = f"""The following research report appears to be incomplete. Please continue and complete it based on the available research data.
+
+CURRENT REPORT (ending incomplete):
+{partial_report}
+
+AVAILABLE RESEARCH DATA:
+{research_summary}
+
+INSTRUCTIONS:
+1. Continue from exactly where the report left off
+2. Complete any unfinished sentences or sections
+3. Add missing sections if needed (especially conclusion/recommendations)
+4. Ensure the report flows naturally from the existing content
+5. Keep the same style and formatting as the existing report
+6. Make it comprehensive but focused
+7. End with a proper conclusion and next steps
+
+Please continue the report from where it left off:"""
+
+        # Call the LLM to complete the report
+        completion = call_llm(completion_prompt, "report completion")
+        
+        if completion:
+            # Find where to splice the completion
+            # Look for the last complete sentence or section
+            lines = partial_report.strip().split('\n')
+            
+            # Find the last line that ends properly
+            splice_point = len(lines)
+            for i in range(len(lines) - 1, -1, -1):
+                line = lines[i].strip()
+                if line and (line.endswith('.') or line.endswith(':') or line.startswith('#')):
+                    splice_point = i + 1
+                    break
+            
+            # Combine the complete part with the new completion
+            if splice_point < len(lines):
+                complete_part = '\n'.join(lines[:splice_point])
+                completed_report = complete_part + '\n\n' + completion.strip()
+            else:
+                completed_report = partial_report + '\n\n' + completion.strip()
+            
+            print(f"DEBUG: Report completed. New length: {len(completed_report)}")
+            return completed_report
+        else:
+            print("DEBUG: No completion received from LLM")
+        
+    except Exception as e:
+        print(f"Error completing report: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+    
+    return None
 
 def parse_qa_response_manually(response_text: str) -> dict:
     """
@@ -238,7 +395,15 @@ st.title("🧠 Intelligent Search")
 st.markdown("Advanced AI-powered search with comprehensive research workflow")
 
 # Initialize components
-search_engine = EnhancedIntelligentSearchEngine()
+try:
+    from utils.intelligent_search_refined import get_refined_search_engine
+    search_engine = get_refined_search_engine()
+    print("Using refined search engine with improved scoring and intent handling")
+except ImportError:
+    from utils.intelligent_search_enhanced import EnhancedIntelligentSearchEngine
+    search_engine = EnhancedIntelligentSearchEngine()
+    print("Using standard enhanced search engine")
+
 workflow_orchestrator = WorkflowOrchestrator()
 
 # Initialize session state
@@ -654,10 +819,27 @@ if st.session_state.workflow_mode:
         if st.button("🚀 Start Research", type="primary", disabled=not query):
             with st.spinner("Analyzing your request..."):
                 try:
+                    # Clear any existing workflow state to start fresh
+                    if 'workflow_state' in st.session_state:
+                        del st.session_state.workflow_state
+                    
+                    # Also clear the research workflow state
+                    if 'research_workflow' in st.session_state:
+                        del st.session_state.research_workflow
+                    
                     # Reset workflow persistence to ensure new session
                     workflow_persistence.current_session_dir = None
-                    result = workflow_orchestrator.execute_workflow(query)
+                    
+                    # Create a new workflow orchestrator instance to ensure clean state
+                    new_workflow_orchestrator = WorkflowOrchestrator()
+                    
+                    # Execute the new workflow
+                    result = new_workflow_orchestrator.execute_workflow(query)
                     st.session_state.workflow_state = result
+                    
+                    # Update the main workflow_orchestrator reference
+                    workflow_orchestrator = new_workflow_orchestrator
+                    
                     st.rerun()
                 except Exception as e:
                     st.error(f"Failed to start research: {str(e)}")
@@ -667,6 +849,18 @@ if st.session_state.workflow_mode:
         # Handle workflow stages
         workflow_state = st.session_state.workflow_state
         stage = workflow_state['stage']
+        
+        # Debug: Show what stage we're in
+        print(f"DEBUG: Current detected stage: {stage}")
+        print(f"DEBUG: Workflow state keys: {list(workflow_state.keys())}")
+        if 'data' in workflow_state:
+            data = workflow_state['data']
+            if isinstance(data, dict):
+                print(f"DEBUG: Data keys: {list(data.keys())}")
+            elif isinstance(data, list):
+                print(f"DEBUG: Data is a list with {len(data)} items")
+            else:
+                print(f"DEBUG: Data type: {type(data)}")
         
         if stage == 'inquiry_clarification':
             st.markdown("### Step 1: Clarifying Your Research Request")
@@ -746,13 +940,43 @@ if st.session_state.workflow_mode:
             
             if st.button("Continue to Task Planning →", type="primary", disabled=not all_answered):
                 with st.spinner("Planning research tasks..."):
-                    workflow_orchestrator.current_stage = 'task_decomposition'
-                    result = workflow_orchestrator.execute_workflow(
-                        "", 
-                        st.session_state.clarification_responses
-                    )
-                    st.session_state.workflow_state = result
-                    st.rerun()
+                    # Build clarified request from user responses before proceeding
+                    original_query = workflow_orchestrator.workflow.workflow_state.get('original_query', '')
+                    clarified_request = ""
+                    if clarifying_questions and st.session_state.clarification_responses:
+                        responses = []
+                        for q in clarifying_questions:
+                            question = q['question']
+                            answer = st.session_state.clarification_responses.get(question, "")
+                            if answer and answer.strip():
+                                responses.append(f"Q: {question}\nA: {answer}")
+                        
+                        if responses:
+                            clarified_request = f"Original query: {original_query}\n\nClarifications:\n" + "\n\n".join(responses)
+                        else:
+                            # No valid responses, use original query
+                            clarified_request = f"Original query: {original_query}\n\n(No additional clarifications provided)"
+                    else:
+                        # No responses at all, use original query
+                        clarified_request = f"Original query: {original_query}\n\n(No additional clarifications provided)"
+                    
+                    # Set the clarified request in workflow state before changing stage
+                    if clarified_request and len(clarified_request.strip()) > 10:
+                        workflow_orchestrator.workflow.workflow_state['clarified_request'] = clarified_request
+                        workflow_orchestrator.workflow.workflow_state['current_stage'] = 'task_decomposition'
+                        workflow_orchestrator.current_stage = 'task_decomposition'
+                        
+                        # Save the updated workflow state with new stage
+                        workflow_persistence.save_workflow_state(workflow_orchestrator.workflow.workflow_state)
+                        
+                        result = workflow_orchestrator.execute_workflow(
+                            "", 
+                            st.session_state.clarification_responses
+                        )
+                        st.session_state.workflow_state = result
+                        st.rerun()
+                    else:
+                        st.error("Please provide valid responses to all questions to continue.")
         
         elif stage == 'task_decomposition':
             st.markdown("### Step 2: Research Task Planning")
@@ -976,7 +1200,14 @@ if st.session_state.workflow_mode:
                         # Update workflow with final tasks
                         workflow_orchestrator.workflow.workflow_state['subtasks'] = st.session_state.editable_decomposition['subtasks']
                         
+                        # Set and save the stage properly
+                        workflow_orchestrator.workflow.workflow_state['current_stage'] = 'document_research'
                         workflow_orchestrator.current_stage = 'document_research'
+                        
+                        # Import workflow_persistence to save state
+                        from utils.workflow_persistence import workflow_persistence
+                        workflow_persistence.save_workflow_state(workflow_orchestrator.workflow.workflow_state)
+                        
                         result = workflow_orchestrator.execute_workflow("", {})
                         st.session_state.workflow_state = result
                         st.rerun()
@@ -990,171 +1221,470 @@ if st.session_state.workflow_mode:
             all_subtasks = workflow_orchestrator.workflow.workflow_state.get('subtasks', [])
             total_tasks = len(all_subtasks)
             
-            # Count completed tasks from multiple sources
-            completed_count = 0
-            for subtask in all_subtasks:
-                task_id = subtask['id']
-                # Check in data results
-                task_result = next((r for r in data if r.get('subtask', {}).get('id') == task_id), None)
-                if task_result and (task_result.get('completed', False) or task_result.get('validation', {}).get('sufficient', False)):
-                    completed_count += 1
-                # Also check in scratchpads for tasks with findings
-                elif task_id in workflow_orchestrator.workflow.workflow_state.get('scratchpads', {}):
-                    scratchpad = workflow_orchestrator.workflow.workflow_state['scratchpads'][task_id]
-                    if scratchpad.get('iteration_count', 0) >= 3 and (scratchpad.get('high_value_findings') or scratchpad.get('insights')):
-                        completed_count += 1
-            
-            st.progress(completed_count / total_tasks if total_tasks > 0 else 0)
-            st.markdown(f"**Research Progress:** {completed_count}/{total_tasks} tasks completed")
-            
-            # Get all subtasks from workflow state
-            all_subtasks = workflow_orchestrator.workflow.workflow_state.get('subtasks', [])
-            scratchpads = workflow_orchestrator.workflow.workflow_state.get('scratchpads', {})
-            doc_analysis = workflow_orchestrator.workflow.workflow_state.get('document_analysis', {})
-            
-            # Show research results for ALL subtasks
-            for subtask in all_subtasks:
-                # Find result for this subtask in data
-                result = next((r for r in data if r['subtask']['id'] == subtask['id']), None)
+            # Check if we have tasks to research
+            if total_tasks == 0:
+                st.error("❌ No research tasks found. It looks like the task planning stage didn't generate any tasks.")
+                st.info("This might happen if the original query was not properly captured. Please restart the research workflow with your actual research question.")
                 
-                if result:
-                    research = result['research']
-                    validation = result['validation']
-                else:
-                    # Create placeholder for tasks not yet in data
-                    research = {'documents_found': 0, 'keywords': {}, 'analysis': {}}
-                    validation = {'sufficient': False, 'total_findings': 0}
-                    result = {'subtask': subtask, 'research': research, 'validation': validation}
-                
-                with st.expander(f"📚 {subtask['title']}", expanded=not validation.get('sufficient', False)):
-                    # Research summary
-                    col1, col2, col3 = st.columns([2, 1, 1])
-                    with col1:
-                        st.markdown("**Documents Found:**")
-                        st.write(f"{research['documents_found']} relevant documents")
-                    with col2:
-                        st.metric("Completeness", f"{validation['completeness_score']}%")
-                    with col3:
-                        status = "✅" if validation.get('sufficient', False) else "🔄"
-                        st.metric("Status", status)
-                    
-                    # Key findings
-                    if 'analysis' in research and 'document_analyses' in research['analysis']:
-                        st.markdown("**Key Findings:**")
-                        for doc_analysis in research['analysis']['document_analyses'][:3]:
-                            if doc_analysis['relevance_score'] >= 7:
-                                st.markdown(f"📄 **{doc_analysis['document_title']}** (Score: {doc_analysis['relevance_score']}/10)")
-                                for insight in doc_analysis.get('insights', [])[:2]:
-                                    st.write(f"  - {insight}")
-                    
-                    # Show completion verification if available
-                    if validation.get('completion_verified') is not None:
-                        st.divider()
-                        completion = validation.get('completion_details', {})
-                        
-                        if validation['completion_verified']:
-                            st.success("✅ Task Completion Verified")
-                            if completion.get('completion_summary'):
-                                st.write(f"**Summary:** {completion['completion_summary']}")
-                            
-                            # Show coverage metrics
-                            if 'objective_coverage' in completion:
-                                coverage = completion['objective_coverage']
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    st.metric("Objective Coverage", f"{coverage.get('percentage', 0)}%")
-                                with col2:
-                                    if 'quality_assessment' in completion:
-                                        quality = completion['quality_assessment']
-                                        st.metric("Quality", quality.get('depth', 'unknown'))
-                        else:
-                            st.warning("⚠️ Task Not Yet Complete")
-                            if completion.get('recommendation'):
-                                st.info(f"**Recommendation:** {completion['recommendation'].replace('_', ' ').title()}")
-                            if completion.get('missing_requirements'):
-                                st.write("**Missing Requirements:**")
-                                for req in completion['missing_requirements']:
-                                    st.write(f"- {req}")
-                    
-                    # Missing information
-                    if not validation.get('sufficient', False) and validation.get('missing_elements'):
-                        st.warning("**Still need information about:**")
-                        for element in validation['missing_elements']:
-                            st.write(f"- {element}")
-            
-            # Action buttons
-            col1, col2 = st.columns(2)
-            with col1:
-                if any(not r.get('validation', {}).get('sufficient', False) for r in data):
-                    if st.button("🔄 Continue Research", type="secondary"):
-                        # Create a status container for real-time updates
-                        with st.status("Continuing research...", expanded=True) as status:
-                            # Create and set progress reporter
-                            progress_reporter = ProgressReporter(status)
-                            set_progress_reporter(progress_reporter)
-                            
-                            # Show current tracking status
-                            progress_reporter.update("🔍 Starting research iteration...")
-                            
-                            # Get initial status
-                            initial_status = workflow_tracker.get_current_status()
-                            progress_reporter.update_metrics(
-                                initial_status['total_operations'], 
-                                initial_status['total_llm_calls']
-                            )
-                            
-                            # Execute workflow
-                            result = workflow_orchestrator.execute_workflow("", {})
-                            
-                            # Show final status
-                            final_status = workflow_tracker.get_current_status()
-                            progress_reporter.success(
-                                f"Completed - Operations: {final_status['total_operations']} | "
-                                f"LLM Calls: {final_status['total_llm_calls']} | "
-                                f"Time: {final_status['elapsed_minutes']:.1f} min"
-                            )
-                            
-                            # Clear progress reporter
-                            set_progress_reporter(None)
-                            
-                            st.session_state.workflow_state = result
-                            status.update(label="Research iteration complete!", state="complete")
-                            st.rerun()
-            
-            with col2:
-                all_sufficient = all(r.get('validation', {}).get('sufficient', False) for r in data)
-                completed_tasks = sum(1 for r in data if r.get('validation', {}).get('sufficient', False))
-                total_tasks = len(data)
-                
-                # Allow report generation if at least some tasks have findings
-                # Try multiple sources for scratchpads
-                scratchpads = workflow_state.get('scratchpads', {})
-                if not scratchpads and 'loaded_state' in workflow_state:
-                    scratchpads = workflow_state['loaded_state'].get('scratchpads', {})
-                if not scratchpads:
-                    # Try to get from workflow orchestrator
-                    scratchpads = workflow_orchestrator.workflow.workflow_state.get('scratchpads', {})
-                
-                has_findings = any(
-                    scratchpad.get('high_value_findings') or scratchpad.get('insights') 
-                    for scratchpad in scratchpads.values()
-                )
-                
-                button_text = "📝 Generate Report →" if all_sufficient else f"📝 Generate Partial Report ({completed_tasks}/{total_tasks} complete)"
-                
-                if st.button(button_text, type="primary", disabled=not has_findings):
-                    with st.spinner("Generating comprehensive report..."):
-                        workflow_orchestrator.current_stage = 'report_generation'
-                        result = workflow_orchestrator.execute_workflow("", {})
-                        st.session_state.workflow_state = result
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("← Back to Task Planning", type="secondary"):
+                        workflow_orchestrator.workflow.workflow_state['current_stage'] = 'task_decomposition'
+                        workflow_orchestrator.current_stage = 'task_decomposition'
+                        workflow_persistence.save_workflow_state(workflow_orchestrator.workflow.workflow_state)
                         st.rerun()
+                
+                with col2:
+                    if st.button("🔄 Start New Research", type="primary"):
+                        # Clear workflow state to start fresh
+                        st.session_state.workflow_state = None
+                        workflow_orchestrator.current_stage = None
+                        workflow_persistence.current_session_dir = None
+                        st.rerun()
+            else:
+                # Count completed tasks from multiple sources
+                completed_count = 0
+                for subtask in all_subtasks:
+                    task_id = subtask['id']
+                    # Check in data results
+                    task_result = next((r for r in data if r.get('subtask', {}).get('id') == task_id), None)
+                    if task_result and (task_result.get('completed', False) or task_result.get('validation', {}).get('sufficient', False)):
+                        completed_count += 1
+                    # Also check in scratchpads for tasks with findings
+                    elif task_id in workflow_orchestrator.workflow.workflow_state.get('scratchpads', {}):
+                        scratchpad = workflow_orchestrator.workflow.workflow_state['scratchpads'][task_id]
+                        if scratchpad.get('iteration_count', 0) >= 3 and (scratchpad.get('high_value_findings') or scratchpad.get('insights')):
+                            completed_count += 1
+                
+                st.progress(completed_count / total_tasks if total_tasks > 0 else 0)
+                st.markdown(f"**Research Progress:** {completed_count}/{total_tasks} tasks completed")
+                
+                # Get all subtasks from workflow state
+                all_subtasks = workflow_orchestrator.workflow.workflow_state.get('subtasks', [])
+                scratchpads = workflow_orchestrator.workflow.workflow_state.get('scratchpads', {})
+                doc_analysis = workflow_orchestrator.workflow.workflow_state.get('document_analysis', {})
+                
+                # Show research results for ALL subtasks
+                for subtask in all_subtasks:
+                    # Find result for this subtask in data
+                    result = next((r for r in data if r['subtask']['id'] == subtask['id']), None)
+                    
+                    if result:
+                        research = result['research']
+                        validation = result['validation']
+                    else:
+                        # Create placeholder for tasks not yet in data
+                        research = {'documents_found': 0, 'keywords': {}, 'analysis': {}}
+                        validation = {'sufficient': False, 'total_findings': 0}
+                        result = {'subtask': subtask, 'research': research, 'validation': validation}
+                    
+                    with st.expander(f"📚 {subtask['title']}", expanded=not validation.get('sufficient', False)):
+                        # Research summary
+                        col1, col2, col3 = st.columns([2, 1, 1])
+                        with col1:
+                            st.markdown("**Documents Found:**")
+                            st.write(f"{research['documents_found']} relevant documents")
+                        with col2:
+                            st.metric("Completeness", f"{validation['completeness_score']}%")
+                        with col3:
+                            status = "✅" if validation.get('sufficient', False) else "🔄"
+                            st.metric("Status", status)
+                        
+                        # Check if web search was performed
+                        task_scratchpad = scratchpads.get(subtask['id'], {})
+                        if task_scratchpad.get('search_enhanced'):
+                            st.info("🌐 Enhanced with web search results")
+                        
+                        # Key findings
+                        if 'analysis' in research and 'document_analyses' in research['analysis']:
+                            st.markdown("**Key Findings:**")
+                            for doc_analysis in research['analysis']['document_analyses'][:3]:
+                                if doc_analysis['relevance_score'] >= 7:
+                                    st.markdown(f"📄 **{doc_analysis['document_title']}** (Score: {doc_analysis['relevance_score']}/10)")
+                                    for insight in doc_analysis.get('insights', [])[:2]:
+                                        st.write(f"  - {insight}")
+                        
+                        # Display web search results if available
+                        if task_scratchpad.get('web_search_results'):
+                            st.markdown("**🔍 Web Search Results:**")
+                            for i, result in enumerate(task_scratchpad['web_search_results'][:2]):
+                                st.markdown(f"**Query {i+1}:** {result['query']}")
+                                # Display in a container instead of expander
+                                with st.container():
+                                    st.info(result['result'][:500] + "..." if len(result['result']) > 500 else result['result'])
+                        
+                        # Show completion verification if available
+                        if validation.get('completion_verified') is not None:
+                            st.divider()
+                            completion = validation.get('completion_details', {})
+                            
+                            if validation['completion_verified']:
+                                st.success("✅ Task Completion Verified")
+                                if completion.get('completion_summary'):
+                                    st.write(f"**Summary:** {completion['completion_summary']}")
+                                
+                                # Show coverage metrics
+                                if 'objective_coverage' in completion:
+                                    coverage = completion['objective_coverage']
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        st.metric("Objective Coverage", f"{coverage.get('percentage', 0)}%")
+                                    with col2:
+                                        if 'quality_assessment' in completion:
+                                            quality = completion['quality_assessment']
+                                            st.metric("Quality", quality.get('depth', 'unknown'))
+                            else:
+                                st.warning("⚠️ Task Not Yet Complete")
+                                if completion.get('recommendation'):
+                                    st.info(f"**Recommendation:** {completion['recommendation'].replace('_', ' ').title()}")
+                                if completion.get('missing_requirements'):
+                                    st.write("**Missing Requirements:**")
+                                    for req in completion['missing_requirements']:
+                                        st.write(f"- {req}")
+                        
+                        # Missing information
+                        if not validation.get('sufficient', False) and validation.get('missing_elements'):
+                            st.warning("**Still need information about:**")
+                            for element in validation['missing_elements']:
+                                st.write(f"- {element}")
+                
+                # Gap Filling with Web Search Option
+                st.divider()
+                with st.expander("🔍 Advanced: Fill Gaps with Web Search", expanded=False):
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        enable_search = st.checkbox("Enable GPT-4o Search Preview", 
+                                                   help="Use GPT-4o with web search to find up-to-date information for incomplete tasks")
+                    
+                    with col2:
+                        completion_threshold = st.slider("Completion Threshold (%)", 
+                                                       min_value=50, 
+                                                       max_value=90, 
+                                                       value=70,
+                                                       step=5,
+                                                       disabled=not enable_search,
+                                                       help="Tasks below this completion score will be enhanced with web search")
+                    
+                    with col3:
+                        search_iterations = st.number_input("Search Iterations per Task", 
+                                                          min_value=1, 
+                                                          max_value=5, 
+                                                          value=2,
+                                                          disabled=not enable_search,
+                                                          help="Number of search queries to generate per incomplete task")
+                    
+                    if enable_search:
+                        # Find tasks that need gap filling
+                        tasks_needing_search = []
+                        for subtask in all_subtasks:
+                            result = next((r for r in data if r.get('subtask', {}).get('id') == subtask['id']), None)
+                            if result:
+                                validation = result.get('validation', {})
+                                completion_score = validation.get('completeness_score', 0)
+                                if completion_score < completion_threshold:
+                                    tasks_needing_search.append({
+                                        'task': subtask,
+                                        'completion_score': completion_score,
+                                        'missing_elements': validation.get('missing_elements', [])
+                                    })
+                        
+                        if tasks_needing_search:
+                            st.info(f"Found {len(tasks_needing_search)} tasks below {completion_threshold}% completion")
+                            
+                            if st.button("🌐 Run Web Search Gap Filling", type="primary"):
+                                with st.spinner("Generating search queries and fetching information..."):
+                                    # Import the new search function
+                                    from utils.llm_utils import search_with_gpt4o_preview
+                                    
+                                    for task_info in tasks_needing_search:
+                                        task = task_info['task']
+                                        st.write(f"Searching for: {task['title']}")
+                                        
+                                        # Generate search questions based on task and missing elements
+                                        search_context = {
+                                            'task_title': task['title'],
+                                            'task_objective': task['objective'],
+                                            'task_scope': task['scope'],
+                                            'missing_elements': task_info['missing_elements'],
+                                            'original_query': workflow_orchestrator.workflow.workflow_state.get('original_query', '')
+                                        }
+                                        
+                                        # Generate and execute searches
+                                        search_results = []
+                                        for i in range(search_iterations):
+                                            # Create specific search queries using a more sophisticated prompt
+                                            query_prompt = f"""Generate 3 specific web search queries to find up-to-date information for this research task.
+
+Research Context:
+- Task: {task['title']}
+- Objective: {task['objective']}
+- Scope: {task['scope']}
+- Original Research Question: {workflow_orchestrator.workflow.workflow_state.get('original_query', '')}
+
+Missing Information Gaps:
+{chr(10).join(f"- {elem}" for elem in task_info['missing_elements'][:5])}
+
+Query Set {i+1} of {search_iterations}:
+Generate 3 different search queries that would help fill these information gaps. Focus on:
+1. Recent developments (2024-2025)
+2. Practical implementations and case studies
+3. Technical specifications or best practices
+
+Format as a JSON array of 3 query strings."""
+                                            
+                                            # Generate queries
+                                            queries_response = call_llm(query_prompt, "generate search queries")
+                                            
+                                            # Parse queries
+                                            try:
+                                                import json
+                                                queries = json.loads(queries_response)
+                                                if not isinstance(queries, list):
+                                                    queries = [queries_response]
+                                            except:
+                                                # Fallback to simple query extraction
+                                                queries = [line.strip() for line in queries_response.split('\n') if line.strip() and not line.startswith('{')][:3]
+                                            
+                                            # Execute searches for each query
+                                            for j, search_query in enumerate(queries[:3]):
+                                                st.write(f"  Query {i*3 + j + 1}: {search_query}")
+                                                
+                                                # Use the search preview model
+                                                search_result = search_with_gpt4o_preview(search_query)
+                                                if search_result:
+                                                    search_results.append({
+                                                        'query': search_query,
+                                                        'result': search_result,
+                                                        'timestamp': datetime.now().isoformat()
+                                                    })
+                                        
+                                        # Update task's research data with search results
+                                        if task['id'] not in workflow_orchestrator.workflow.workflow_state.get('scratchpads', {}):
+                                            workflow_orchestrator.workflow.workflow_state['scratchpads'][task['id']] = {}
+                                        
+                                        scratchpad = workflow_orchestrator.workflow.workflow_state['scratchpads'][task['id']]
+                                        scratchpad['web_search_results'] = search_results
+                                        scratchpad['search_timestamp'] = datetime.now().isoformat()
+                                        scratchpad['search_enhanced'] = True
+                                        
+                                        # Add search results to high value findings
+                                        if 'high_value_findings' not in scratchpad:
+                                            scratchpad['high_value_findings'] = []
+                                        
+                                        # Process each search result and extract key information
+                                        for result in search_results:
+                                            finding = f"[Web Search - {result['query']}]: {result['result'][:200]}..."
+                                            scratchpad['high_value_findings'].append(finding)
+                                    
+                                    # Save updated workflow state
+                                    from utils.workflow_persistence import workflow_persistence
+                                    workflow_persistence.save_workflow_state(workflow_orchestrator.workflow.workflow_state)
+                                    
+                                    st.success("✅ Web search gap filling complete!")
+                                    st.rerun()
+                        else:
+                            st.success(f"All tasks are above {completion_threshold}% completion!")
+                
+                # Action buttons
+                col1, col2 = st.columns(2)
+                with col1:
+                    if any(not r.get('validation', {}).get('sufficient', False) for r in data):
+                        if st.button("🔄 Continue Research", type="secondary"):
+                            # Create a status container for real-time updates
+                            with st.status("Continuing research...", expanded=True) as status:
+                                # Create and set progress reporter
+                                progress_reporter = ProgressReporter(status)
+                                set_progress_reporter(progress_reporter)
+                                
+                                # Show current tracking status
+                                progress_reporter.update("🔍 Starting research iteration...")
+                                
+                                # Get initial status
+                                initial_status = workflow_tracker.get_current_status()
+                                progress_reporter.update_metrics(
+                                    initial_status['total_operations'], 
+                                    initial_status['total_llm_calls']
+                                )
+                                
+                                # Execute workflow
+                                result = workflow_orchestrator.execute_workflow("", {})
+                                
+                                # Show final status
+                                final_status = workflow_tracker.get_current_status()
+                                progress_reporter.success(
+                                    f"Completed - Operations: {final_status['total_operations']} | "
+                                    f"LLM Calls: {final_status['total_llm_calls']} | "
+                                    f"Time: {final_status['elapsed_minutes']:.1f} min"
+                                )
+                                
+                                # Clear progress reporter
+                                set_progress_reporter(None)
+                                
+                                st.session_state.workflow_state = result
+                                status.update(label="Research iteration complete!", state="complete")
+                                st.rerun()
+                
+                with col2:
+                    all_sufficient = all(r.get('validation', {}).get('sufficient', False) for r in data)
+                    completed_tasks = sum(1 for r in data if r.get('validation', {}).get('sufficient', False))
+                    total_tasks = len(data)
+                    
+                    # Allow report generation if at least some tasks have findings
+                    # Try multiple sources for scratchpads
+                    scratchpads = workflow_state.get('scratchpads', {})
+                    if not scratchpads and 'loaded_state' in workflow_state:
+                        scratchpads = workflow_state['loaded_state'].get('scratchpads', {})
+                    if not scratchpads:
+                        # Try to get from workflow orchestrator
+                        scratchpads = workflow_orchestrator.workflow.workflow_state.get('scratchpads', {})
+                    
+                    has_findings = any(
+                        scratchpad.get('high_value_findings') or scratchpad.get('insights') 
+                        for scratchpad in scratchpads.values()
+                    )
+                    
+                    # Debug info
+                    print(f"DEBUG: Scratchpads found: {len(scratchpads)}")
+                    print(f"DEBUG: Has findings: {has_findings}")
+                    print(f"DEBUG: Completed tasks: {completed_tasks}/{total_tasks}")
+                    
+                    # Always allow report generation - we'll create default content if needed
+                    has_findings = True  # Force enable the button
+                    
+                    # Show both buttons for better user experience
+                    col2a, col2b = st.columns(2)
+                    
+                    with col2a:
+                        button_text = "📝 Generate Report →" if all_sufficient else f"📝 Generate Partial Report ({completed_tasks}/{total_tasks} complete)"
+                        
+                        if st.button(button_text, type="primary", disabled=not has_findings):
+                            with st.spinner("Generating comprehensive report..."):
+                                workflow_orchestrator.current_stage = 'report_generation'
+                                result = workflow_orchestrator.execute_workflow("", {})
+                                
+                                # Debug: Check what we got back
+                                print(f"DEBUG: Report generation result: {result}")
+                                print(f"DEBUG: Result stage: {result.get('stage', 'NO STAGE')}")
+                                print(f"DEBUG: Result keys: {list(result.keys())}")
+                                
+                                st.session_state.workflow_state = result
+                                st.rerun()
+                    
+                    with col2b:
+                        # Force report generation button as backup
+                        if st.button("🚀 Force Generate Report", type="secondary", help="Generate report regardless of completion status"):
+                            with st.spinner("Forcing report generation..."):
+                                # Force stage transition
+                                workflow_orchestrator.current_stage = 'report_generation'
+                                workflow_orchestrator.workflow.workflow_state['current_stage'] = 'report_generation'
+                                
+                                # Call report generation directly
+                                result = workflow_orchestrator.handle_report_generation()
+                                
+                                print(f"DEBUG: Forced report result: {result}")
+                                print(f"DEBUG: Forced result stage: {result.get('stage', 'NO STAGE')}")
+                                
+                                st.session_state.workflow_state = result
+                                st.rerun()
         
         elif stage == 'report_generation':
             st.markdown("### Step 4: Research Report")
             
+            # Get the report from multiple possible locations
             data = workflow_state.get('data', {})
-            report = data.get('report', 'No report generated')
-            metadata = data.get('metadata', {})
+            
+            # Handle both dict and list data types
+            if isinstance(data, dict):
+                report = data.get('report', 'No report generated')
+                metadata = data.get('metadata', {})
+            else:
+                # data is a list (from document research), no report yet
+                report = 'No report generated'
+                metadata = {}
+            
+            # Check if report is stored directly in workflow state
+            if (not report or report == 'No report generated') and workflow_orchestrator:
+                orchestrator_report = workflow_orchestrator.workflow.workflow_state.get('final_report')
+                if orchestrator_report:
+                    report = orchestrator_report
+                    # Update metadata from orchestrator
+                    metadata = {
+                        'generated_at': datetime.now().isoformat(),
+                        'subtasks_completed': len(workflow_orchestrator.workflow.workflow_state.get('subtasks', [])),
+                        'documents_analyzed': workflow_orchestrator.workflow._count_analyzed_documents()
+                    }
+                else:
+                    # No report exists, generate it now
+                    st.info("🔄 Generating report now...")
+                    with st.spinner("Creating comprehensive report..."):
+                        try:
+                            result = workflow_orchestrator.handle_report_generation()
+                            if result and 'data' in result and 'report' in result['data']:
+                                report = result['data']['report']
+                                metadata = result['data']['metadata']
+                                
+                                # Check if report is complete
+                                if _is_report_incomplete(report):
+                                    st.warning("⚠️ Report appears incomplete, continuing generation...")
+                                    complete_report = _complete_incomplete_report(report, workflow_orchestrator)
+                                    if complete_report:
+                                        report = complete_report
+                                        # Update the workflow state with the complete report
+                                        workflow_orchestrator.workflow.workflow_state['final_report'] = report
+                                        workflow_persistence.save_workflow_state(workflow_orchestrator.workflow.workflow_state)
+                                        st.success("✅ Report completed successfully!")
+                                    else:
+                                        st.warning("⚠️ Could not complete report, showing partial version")
+                                else:
+                                    st.success("✅ Report generated successfully!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Failed to generate report - invalid result structure")
+                        except Exception as e:
+                            st.error(f"❌ Error generating report: {str(e)}")
+                            print(f"Report generation error: {e}")
+            
+            # Also check if existing report is incomplete
+            elif report and report != 'No report generated' and _is_report_incomplete(report):
+                st.warning("📝 Report appears to be incomplete")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("🔄 Complete Report", type="primary", help="Continue generating the incomplete report", key="complete_report_btn_alt"):
+                        with st.spinner("Completing report..."):
+                            complete_report = _complete_incomplete_report(report, workflow_orchestrator)
+                            if complete_report:
+                                # Use the update_report method to properly save and update all state
+                                result = workflow_orchestrator.update_report(complete_report)
+                                
+                                # Update session state with the new result
+                                st.session_state.workflow_state = result
+                                
+                                st.success("✅ Report completed!")
+                                time.sleep(0.5)  # Brief pause to ensure UI updates
+                                st.rerun()
+                            else:
+                                st.error("❌ Failed to complete report")
+                with col2:
+                    if st.button("📤 Use Partial Report", type="secondary", help="Continue with the incomplete report", key="use_partial_report_btn_alt"):
+                        st.info("Using partial report as-is")
+            
+            # Debug info
+            if not report or report == 'No report generated':
+                st.warning("⚠️ Report generation may still be in progress or encountered an issue.")
+                with st.expander("Debug Info", expanded=False):
+                    st.write("Workflow state keys:", list(workflow_state.keys()))
+                    if isinstance(data, dict):
+                        st.write("Data keys:", list(data.keys()))
+                    elif isinstance(data, list):
+                        st.write("Data is a list with", len(data), "items")
+                    else:
+                        st.write("Data type:", type(data))
+                    st.write("Report length:", len(report) if report else 0)
+                    if workflow_orchestrator:
+                        final_report = workflow_orchestrator.workflow.workflow_state.get('final_report')
+                        st.write("Orchestrator final_report length:", len(final_report) if final_report else 0)
             
             # Report metadata
             col1, col2, col3 = st.columns(3)
@@ -1169,6 +1699,16 @@ if st.session_state.workflow_mode:
             # Report actions
             col1, col2, col3, col4 = st.columns(4)
             with col1:
+                if st.button("🆕 Start New Research", type="secondary", help="Clear current research and start a new one"):
+                    # Clear all workflow states
+                    if 'workflow_state' in st.session_state:
+                        del st.session_state.workflow_state
+                    if 'research_workflow' in st.session_state:
+                        del st.session_state.research_workflow
+                    workflow_persistence.current_session_dir = None
+                    st.rerun()
+            
+            with col2:
                 # Download button - use improved version if available
                 download_report = report
                 download_label = "📥 Download Report (Markdown)"
@@ -1191,7 +1731,9 @@ if st.session_state.workflow_mode:
             
             with col3:
                 # Manual QA Review button
-                if st.button("🔍 QA Review"):
+                qa_button_text = "🔍 Manual QA Review"
+                qa_help_text = "Run additional manual QA review (automatic QA already completed)"
+                if st.button(qa_button_text, help=qa_help_text):
                     # Generate unique session ID for this QA review
                     import time
                     st.session_state.qa_session_id = f"qa_{int(time.time())}"
@@ -1479,7 +2021,165 @@ Do not include ```json``` code blocks or any other formatting - just the raw JSO
                     display_report = st.session_state.manual_improvement_applied['improved_report']
                     st.info("📝 Showing improved version of the report (improvements have been applied)")
                 
-                st.markdown(display_report)
+                # Show the actual report
+                if display_report and display_report != 'No report generated':
+                    st.markdown("---")
+                    st.markdown(display_report)
+                else:
+                    st.error("❌ No report content available. Please try regenerating the report.")
+                    if st.button("🔄 Try Regenerating Report"):
+                        # Force regeneration
+                        workflow_orchestrator.current_stage = 'report_generation'
+                        result = workflow_orchestrator.execute_workflow("", {})
+                        st.session_state.workflow_state = result
+                        st.rerun()
+            
+            # Display automatic QA results if available
+            if workflow_orchestrator.workflow.workflow_state.get('automatic_qa_results'):
+                automatic_qa = workflow_orchestrator.workflow.workflow_state['automatic_qa_results']
+                
+                st.divider()
+                st.markdown("## 🤖 Automatic QA & Improvements")
+                
+                if automatic_qa.get('automatic_qa_completed', False):
+                    # QA completed successfully
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        content_score = automatic_qa.get('content_qa', {}).get('query_satisfaction_score', 85)
+                        st.metric("Content Quality", f"{content_score}%")
+                    
+                    with col2:
+                        structure_score = automatic_qa.get('structure_qa', {}).get('overall_structure_score', 85)
+                        st.metric("Structure Quality", f"{structure_score}%")
+                    
+                    with col3:
+                        improvements_count = len(automatic_qa.get('improvements_applied', []))
+                        st.metric("Auto Improvements", improvements_count)
+                    
+                    with col4:
+                        final_score = automatic_qa.get('final_verification', {}).get('overall_readiness', 85)
+                        st.metric("Overall Readiness", f"{final_score}%")
+                    
+                    # Show improvements applied
+                    if automatic_qa.get('improvements_applied'):
+                        with st.expander("📋 Automatic Improvements Applied", expanded=False):
+                            for improvement in automatic_qa['improvements_applied']:
+                                st.write(f"**{improvement.get('type', 'Unknown').replace('_', ' ').title()}:** {improvement.get('description', 'No description')}")
+                    
+                    # Show QA timestamp
+                    try:
+                        qa_time = datetime.fromisoformat(automatic_qa['timestamp']).strftime("%Y-%m-%d %H:%M:%S")
+                        st.caption(f"🕒 Automatic QA completed: {qa_time}")
+                    except (ValueError, KeyError):
+                        st.caption("🕒 Automatic QA completed")
+                    
+                    if final_score >= 80:
+                        st.success("✅ Report passed automatic QA and is ready for use!")
+                    elif final_score >= 60:
+                        st.warning("⚠️ Report passed automatic QA with minor issues")
+                        # Show specific issues for scores 60-79
+                        if automatic_qa.get('content_qa', {}).get('issues_identified'):
+                            with st.expander("⚠️ Minor Issues Identified", expanded=False):
+                                for issue in automatic_qa['content_qa']['issues_identified']:
+                                    st.write(f"• **{issue.get('type', 'Issue')}:** {issue.get('description', 'No description')}")
+                    else:
+                        st.error("❌ Report has quality issues despite automatic improvements")
+                        
+                        # Show detailed quality issues
+                        with st.expander("🔍 Quality Issues Detected", expanded=True):
+                            # Content quality issues
+                            content_qa = automatic_qa.get('content_qa', {})
+                            if content_qa.get('issues_identified'):
+                                st.markdown("**Content Quality Issues:**")
+                                for issue in content_qa['issues_identified']:
+                                    issue_type = issue.get('type', 'Issue').replace('_', ' ').title()
+                                    issue_desc = issue.get('description', 'No description')
+                                    severity = issue.get('severity', 'medium')
+                                    
+                                    if severity == 'high':
+                                        st.error(f"🔴 **{issue_type}:** {issue_desc}")
+                                    elif severity == 'medium':
+                                        st.warning(f"🟡 **{issue_type}:** {issue_desc}")
+                                    else:
+                                        st.info(f"🔵 **{issue_type}:** {issue_desc}")
+                            
+                            # Structure quality issues
+                            structure_qa = automatic_qa.get('structure_qa', {})
+                            if structure_qa.get('structural_issues'):
+                                st.markdown("**Structure Quality Issues:**")
+                                for issue in structure_qa['structural_issues']:
+                                    st.write(f"• **{issue.get('section', 'Unknown section')}:** {issue.get('issue', 'No description')}")
+                            
+                            # Verification issues
+                            verification = automatic_qa.get('final_verification', {})
+                            if verification.get('remaining_issues'):
+                                st.markdown("**Remaining Issues After Improvements:**")
+                                for issue in verification['remaining_issues']:
+                                    st.write(f"• {issue}")
+                            
+                            # Missing information
+                            if verification.get('missing_critical_info'):
+                                st.markdown("**Missing Critical Information:**")
+                                for missing in verification['missing_critical_info']:
+                                    st.write(f"• {missing}")
+                            
+                            # If no specific issues found, show general score breakdown
+                            if (not content_qa.get('issues_identified') and 
+                                not structure_qa.get('structural_issues') and 
+                                not verification.get('remaining_issues')):
+                                st.markdown("**Score Breakdown:**")
+                                st.write(f"• Content Quality: {content_score}%")
+                                st.write(f"• Structure Quality: {structure_score}%")
+                                st.write(f"• Overall Readiness: {final_score}%")
+                                st.info("💡 The low score may be due to missing information or complexity of the research topic. Consider using the manual QA review for more detailed analysis.")
+                
+                else:
+                    # QA failed
+                    st.error(f"❌ Automatic QA failed: {automatic_qa.get('error', 'Unknown error')}")
+                    st.warning("Using original report without automatic improvements")
+            
+            # Check if report is incomplete after automatic QA
+            final_report_to_check = display_report if display_report else report
+            
+            # Debug incomplete detection
+            if final_report_to_check:
+                print(f"DEBUG: Checking report completeness...")
+                print(f"DEBUG: Report length: {len(final_report_to_check)}")
+                print(f"DEBUG: Report ends with: '{final_report_to_check.strip()[-50:]}'")
+                is_incomplete = _is_report_incomplete(final_report_to_check)
+                print(f"DEBUG: Is incomplete: {is_incomplete}")
+            
+            if final_report_to_check and _is_report_incomplete(final_report_to_check):
+                st.divider()
+                st.warning("📝 Report appears to be incomplete")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    if st.button("🔄 Complete Report", type="primary", help="Continue generating the incomplete report", key="complete_report_btn"):
+                        with st.spinner("Completing report..."):
+                            complete_report = _complete_incomplete_report(final_report_to_check, workflow_orchestrator)
+                            if complete_report:
+                                # Use the update_report method to properly save and update all state
+                                result = workflow_orchestrator.update_report(complete_report)
+                                
+                                # Update session state with the new result
+                                st.session_state.workflow_state = result
+                                
+                                st.success("✅ Report completed!")
+                                time.sleep(0.5)  # Brief pause to ensure UI updates
+                                st.rerun()
+                            else:
+                                st.error("❌ Failed to complete report")
+                with col2:
+                    if st.button("🔄 Regenerate Entire Report", type="secondary", help="Generate a new report from scratch", key="regenerate_report_btn"):
+                        workflow_orchestrator.current_stage = 'report_generation'
+                        result = workflow_orchestrator.execute_workflow("", {})
+                        st.session_state.workflow_state = result
+                        st.rerun()
+                with col3:
+                    if st.button("📤 Use Partial Report", help="Continue with the incomplete report as-is", key="use_partial_report_btn"):
+                        st.info("Using partial report")
             
             # Display manual QA results if available
             if 'manual_qa_results' in st.session_state:

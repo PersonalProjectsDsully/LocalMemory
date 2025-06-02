@@ -1,0 +1,17 @@
+{
+  "main_topic": "Types of Large Language Model (LLM) agents",
+  "implicit_needs": [
+    "Examples or categories of LLM agents",
+    "Details on how these agents differ",
+    "Potential applications or use cases"
+  ],
+  "ambiguities": [
+    "What specific aspects of LLM agents are of interest (architecture, functionality, deployment)?",
+    "Level of detail required (overview, technical depth, case studies)?",
+    "Context or industry where they plan to apply this knowledge"
+  ],
+  "original_query": "",
+  "query_analysis": {},
+  "clarifying_questions": [],
+  "suggested_refinement": ""
+}

@@ -1,0 +1,70 @@
+{
+  "current_stage": "inquiry_clarification",
+  "clarified_request": null,
+  "subtasks": [],
+  "scratchpads": {},
+  "document_analysis": {},
+  "report_outline": null,
+  "report_sections": {},
+  "final_report": null,
+  "iteration_count": 0,
+  "original_query": "Tell me the difference between different types of AI Agents. ",
+  "clarification_data": {
+    "original_query": "Tell me the difference between different types of AI Agents.",
+    "query_analysis": {
+      "main_topic": "Types of AI Agents and their differences",
+      "implicit_needs": [
+        "Understanding specific categories or classifications of AI agents",
+        "Details on features, functions, or capabilities that distinguish these types",
+        "Potential applications or contexts where each type is used"
+      ],
+      "ambiguities": [
+        "Which specific types of AI agents are of interest (e.g., reactive, deliberative, hybrid)?",
+        "Level of detail desired (overview, technical specifics, case studies)?",
+        "Intended purpose for this information (academic, development, business use)?"
+      ]
+    },
+    "clarifying_questions": [
+      {
+        "question": "Are you interested in specific categories of AI agents, such as reactive, deliberative, or hybrid agents?",
+        "purpose": "To determine which classifications to focus on",
+        "options": [
+          "Yes, specific categories",
+          "No, general overview",
+          "Not sure"
+        ]
+      },
+      {
+        "question": "Would you like detailed technical explanations, examples, or case studies about these AI agents?",
+        "purpose": "To gauge the depth of information needed",
+        "options": [
+          "Technical details",
+          "Practical examples",
+          "Case studies",
+          "Summary overview"
+        ]
+      },
+      {
+        "question": "What is the main application or context for your interest in AI agents? (e.g., research, development, business implementation)",
+        "purpose": "To tailor the information to your use case",
+        "options": [
+          "Research",
+          "Development projects",
+          "Business applications",
+          "Academic study"
+        ]
+      },
+      {
+        "question": "Do you have any specific constraints or preferences, such as focusing on recent advancements or particular industries?",
+        "purpose": "To customize the response according to constraints or interests",
+        "options": [
+          "Recent advancements",
+          "Industry-specific",
+          "General overview"
+        ]
+      }
+    ],
+    "suggested_refinement": "Please specify which types of AI agents you're interested in and your preferred depth of detail to receive a more targeted and useful response."
+  },
+  "session_dir": "research_workspace\\20250601_193923249_Tell_me_the_difference_between_different_types_of"
+}

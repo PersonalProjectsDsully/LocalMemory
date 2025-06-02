@@ -1,0 +1,13 @@
+{
+  "session_id": "20250601_113402762",
+  "created_at": "2025-06-01T11:34:02.762102",
+  "original_query": "",
+  "status": "completed",
+  "last_updated": "2025-06-01T11:34:02.794009",
+  "progress": {
+    "clarified": true,
+    "tasks_defined": true,
+    "research_complete": true,
+    "report_generated": true
+  }
+}
