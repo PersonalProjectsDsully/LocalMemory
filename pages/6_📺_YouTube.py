@@ -8,12 +8,13 @@ import os
 import sys
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.llm_utils import summarize_youtube_transcript, recommend_category_and_tags, test_llm_connection, get_available_ollama_models, get_available_openai_models, get_available_lmstudio_models, OPENAI_AVAILABLE, extract_content_intelligence
+from utils.llm_utils import summarize_youtube_transcript, recommend_category_and_tags, test_llm_connection, get_available_ollama_models, get_available_openai_models, get_available_lmstudio_models, OPENAI_AVAILABLE, extract_content_intelligence, classify_youtube_video
 from utils.session_state_manager import initialize_session_state, auto_save_settings
 from utils.youtube_utils import extract_video_id, fetch_video_info
 from utils.youtube_channel_utils import extract_channel_id, fetch_channel_videos_basic, fetch_channel_videos_with_api, fetch_channel_videos_selenium
 from utils.duplicate_detection import find_existing_video, get_duplicate_handling_choice, update_existing_video_metadata, find_duplicate_videos, show_bulk_duplicate_options, show_duplicate_summary
 from utils.comprehensive_duplicate_detector import DuplicateDetector
+from utils.classification_logger import classification_logger
 
 # Page configuration
 st.set_page_config(
@@ -961,14 +962,7 @@ with tab2:
         
         if selected_count > 0:
             st.info(f"📊 {selected_count} videos selected for processing")
-            
-            # Category selection for bulk save
-            categories = ["Programming", "AI/ML", "DevOps", "Web Development", "Database", "Security"]
-            bulk_category = st.selectbox(
-                "Default category for bulk save:",
-                categories,
-                help="Videos will be saved to their AI-recommended categories, but this will be used as fallback"
-            )
+            st.caption("📁 Videos will be automatically classified into appropriate categories using AI")
             
             # Check for duplicates first (before processing)
             if st.button(f"🔍 Check for Duplicates & Process {selected_count} Videos", type="primary", use_container_width=True):
@@ -1193,12 +1187,38 @@ with tab2:
                             )
                             
                             if summary:
+                                # Update status for classification
+                                status_text.text(f"Processing: {video['title'][:50]}... (🏷️ Classifying)")
+                                
+                                # Classify the video using AI
+                                classification_result = classify_youtube_video(
+                                    summary, 
+                                    video['title'], 
+                                    channel_name
+                                )
+                                classified_category = classification_result.get('category', 'Unclassified')
+                                
+                                # Log classification result
+                                classification_logger.log_classification(
+                                    video_id=video['video_id'],
+                                    video_title=video['title'],
+                                    channel=channel_name,
+                                    category=classified_category,
+                                    confidence=classification_result.get('confidence', 'unknown'),
+                                    method=classification_result.get('method', 'unknown'),
+                                    summary=summary[:500] if summary else None,
+                                    original_response=classification_result.get('original_response')
+                                )
+                                
                                 # Update status for saving
-                                status_text.text(f"Processing: {video['title'][:50]}... (💾 Saving)")
+                                status_text.text(f"Processing: {video['title'][:50]}... (💾 Saving to {classified_category})")
                                 
                                 # Save to knowledgebase
                                 kb_path = Path("knowledgebase")
-                                category = recommendation.get('category', bulk_category)
+                                # Use classified category, with fallback to recommendation if available
+                                category = classified_category
+                                if category == 'Unclassified' and recommendation and recommendation.get('category'):
+                                    category = recommendation.get('category', 'Unclassified')
                                 category_path = kb_path / category.replace("/", "_").replace(" ", "_")
                                 category_path.mkdir(parents=True, exist_ok=True)
                                 
@@ -1319,6 +1339,30 @@ confidence_score: {intelligence.get('confidence_score', 0.5)}
                     total_handled = processed + updated + failed
                     success_rate = ((processed + updated) / total_handled * 100) if total_handled > 0 else 0
                     st.metric("Success Rate", f"{success_rate:.1f}%")
+                
+                # Show classification summary
+                if processed > 0:
+                    st.divider()
+                    st.subheader("📊 Classification Summary")
+                    
+                    # Get summary from logger
+                    classification_summary = classification_logger.get_summary()
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Total Classifications", classification_summary.get('total_classifications', 0))
+                    with col2:
+                        st.metric("Success Rate", classification_summary.get('success_rate', '0%'))
+                    with col3:
+                        most_common = classification_summary.get('most_common_category', 'N/A')
+                        st.metric("Most Common Category", most_common)
+                    
+                    # Show category distribution
+                    category_dist = classification_summary.get('category_distribution', {})
+                    if category_dist:
+                        st.caption("Category Distribution:")
+                        for category, count in sorted(category_dist.items(), key=lambda x: x[1], reverse=True):
+                            st.caption(f"• {category}: {count} videos")
                 
                 # Show summary
                 if processed > 0 or updated > 0:

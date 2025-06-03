@@ -1,0 +1,53 @@
+{
+  "timestamp": "2025-06-02T19:38:37.747708",
+  "verification": {
+    "all_complete": true,
+    "overall_completeness": 85,
+    "task_statuses": {
+      "task_1": {
+        "complete": true,
+        "percentage": 100,
+        "missing": []
+      },
+      "task_2": {
+        "complete": true,
+        "percentage": 100,
+        "missing": []
+      },
+      "task_3": {
+        "complete": true,
+        "percentage": 100,
+        "missing": []
+      },
+      "task_4": {
+        "complete": true,
+        "percentage": 100,
+        "missing": []
+      },
+      "task_5": {
+        "complete": true,
+        "percentage": 100,
+        "missing": []
+      },
+      "task_6": {
+        "complete": true,
+        "percentage": 100,
+        "missing": []
+      },
+      "task_7": {
+        "complete": true,
+        "percentage": 100,
+        "missing": []
+      },
+      "task_8": {
+        "complete": false,
+        "percentage": 0,
+        "missing": [
+          "No research or documentation collected or summarized for this task."
+        ]
+      }
+    },
+    "ready_for_report": true,
+    "final_recommendation": "generate_report"
+  }
+}

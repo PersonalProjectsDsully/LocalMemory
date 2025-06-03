@@ -190,10 +190,10 @@ class ResearchWorkflow:
         Format as JSON:
         {{
             "completeness_score": 85,
-            "gaps": ["..."],
-            "redundancies": ["..."],
-            "suggestions": ["..."],
-            "approved": true
+            "gaps": ["missing aspect 1", "missing aspect 2"],
+            "redundancies": ["duplicate topic between task 2 and 3"],
+            "suggestions": ["add subtask for X", "merge tasks Y and Z"],
+            "approved": false
         }}
         """
         
@@ -532,7 +532,7 @@ class ResearchWorkflow:
         JSON format:
         {{
             "completeness_score": 85,
-            "sufficient": true,
+            "sufficient": false,
             "missing_elements": ["max 3 items"],
             "recommended_action": "continue_search|refine_keywords|proceed"
         }}
@@ -550,6 +550,15 @@ class ResearchWorkflow:
                 'recommended_action': 'proceed',
                 'error': str(e)
             }
+        
+        # Ensure consistency between sufficient and recommended_action
+        if 'sufficient' in validation and 'recommended_action' in validation:
+            if validation['sufficient'] and validation['recommended_action'] != 'proceed':
+                # If sufficient, should proceed
+                validation['recommended_action'] = 'proceed'
+            elif not validation['sufficient'] and validation['recommended_action'] == 'proceed':
+                # If not sufficient, should not proceed
+                validation['recommended_action'] = 'continue_search'
         
         # Add total findings count
         validation['total_findings'] = (
@@ -661,21 +670,24 @@ class ResearchWorkflow:
         
         Format as JSON:
         {{
-            "verified": true,
+            "verified": false,
             "completion_summary": "Brief summary of what was accomplished",
             "objective_coverage": {{
-                "percentage": 0-100,
-                "covered_aspects": ["..."],
-                "missing_aspects": ["..."]
+                "percentage": 75,
+                "covered_aspects": ["aspect1", "aspect2"],
+                "missing_aspects": ["aspect3"]
             }},
             "quality_assessment": {{
-                "depth": "shallow|adequate|comprehensive",
+                "depth": "adequate",
                 "reliability": "high",
-                "completeness": "incomplete|partial|complete"
+                "completeness": "partial"
             }},
-            "missing_requirements": ["..."],
-            "recommendation": "mark_complete|continue_research|refine_search"
+            "missing_requirements": ["requirement1", "requirement2"],
+            "recommendation": "continue_research"
         }}
+        
+        Note: Set "verified" to true ONLY if the task is genuinely complete with high quality.
+        The "verified" field should reflect your honest assessment, not a default value.
         """
         
         try:

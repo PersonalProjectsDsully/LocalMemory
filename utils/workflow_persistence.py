@@ -69,22 +69,25 @@ class WorkflowPersistence:
             
             return session_dir
     
-    def save_workflow_state(self, state: Dict[str, Any]) -> bool:
+    def save_workflow_state(self, state: Dict[str, Any], session_dir: Optional[str] = None) -> bool:
         """Save the complete workflow state"""
-        if not self.current_session_dir:
-            print("Error: No current session directory set")
+        # Use provided session_dir if available, otherwise use current_session_dir
+        target_dir = Path(session_dir) if session_dir else self.current_session_dir
+        
+        if not target_dir:
+            print("Error: No session directory available")
             # Try to create a session if we have the original query
             if 'original_query' in state:
-                self.create_session(state['original_query'])
+                target_dir = self.create_session(state['original_query'])
             else:
                 raise ValueError("Cannot save workflow state without a session directory")
         
         try:
-            print(f"Saving workflow state to: {self.current_session_dir}")
+            print(f"Saving workflow state to: {target_dir}")
             
             # Save main workflow state
             self._save_json(
-                self.current_session_dir / "workflow_state.json",
+                target_dir / "workflow_state.json",
                 state
             )
             
@@ -92,44 +95,45 @@ class WorkflowPersistence:
             if 'clarified_request' in state and state['clarified_request']:
                 print(f"Saving clarified request")
                 self._save_text(
-                    self.current_session_dir / "01_clarified_request.md",
+                    target_dir / "01_clarified_request.md",
                     f"# Clarified Research Request\n\n{state['clarified_request']}"
                 )
             
             if 'subtasks' in state and state['subtasks']:
                 print(f"Saving {len(state['subtasks'])} tasks")
                 self._save_tasks(
-                    self.current_session_dir / "02_research_tasks.md",
+                    target_dir / "02_research_tasks.md",
                     state['subtasks']
                 )
             
             if 'scratchpads' in state and state['scratchpads']:
                 print(f"Saving {len(state['scratchpads'])} scratchpads")
-                self._save_scratchpads(state['scratchpads'])
+                # Pass target_dir to methods that need it
+                self._save_scratchpads(state['scratchpads'], target_dir)
             
             if 'document_analysis' in state and state['document_analysis']:
                 print(f"Saving {len(state['document_analysis'])} document analyses")
-                self._save_document_analysis(state['document_analysis'])
+                self._save_document_analysis(state['document_analysis'], target_dir)
             
             if 'final_report' in state and state['final_report']:
                 print(f"Saving final report")
                 self._save_text(
-                    self.current_session_dir / "05_final_report.md",
+                    target_dir / "05_final_report.md",
                     state['final_report']
                 )
             
             # Update session status
-            self._update_session_status(state)
+            self._update_session_status(state, target_dir)
             
             print(f"Successfully saved workflow state")
             
             # List files created
-            if self.current_session_dir.exists():
-                files = list(self.current_session_dir.rglob("*"))
+            if target_dir.exists():
+                files = list(target_dir.rglob("*"))
                 print(f"Files in session directory: {len(files)}")
                 for f in files:
                     if f.is_file():
-                        print(f"  - {f.relative_to(self.current_session_dir)}")
+                        print(f"  - {f.relative_to(target_dir)}")
             
             return True
             
@@ -250,9 +254,10 @@ class WorkflowPersistence:
         
         self._save_text(filepath, '\n'.join(content))
     
-    def _save_scratchpads(self, scratchpads: Dict[str, Any]):
+    def _save_scratchpads(self, scratchpads: Dict[str, Any], target_dir: Path = None):
         """Save scratchpad contents for each subtask"""
-        scratchpad_dir = self.current_session_dir / "03_scratchpads"
+        session_dir = target_dir if target_dir else self.current_session_dir
+        scratchpad_dir = session_dir / "03_scratchpads"
         scratchpad_dir.mkdir(exist_ok=True)
         
         for task_id, scratchpad in scratchpads.items():
@@ -295,9 +300,10 @@ class WorkflowPersistence:
             self._save_text(file_path, '\n'.join(content))
             print(f"  Saved scratchpad: {file_path.name}")
     
-    def _save_document_analysis(self, analyses: Dict[str, Any]):
+    def _save_document_analysis(self, analyses: Dict[str, Any], target_dir: Path = None):
         """Save document analysis results"""
-        analysis_dir = self.current_session_dir / "04_document_analysis"
+        session_dir = target_dir if target_dir else self.current_session_dir
+        analysis_dir = session_dir / "04_document_analysis"
         analysis_dir.mkdir(exist_ok=True)
         
         for task_id, analysis in analyses.items():
@@ -342,12 +348,13 @@ class WorkflowPersistence:
                 '\n'.join(content)
             )
     
-    def _update_session_status(self, state: Dict[str, Any]):
+    def _update_session_status(self, state: Dict[str, Any], target_dir: Path = None):
         """Update session metadata with current status"""
-        if not self.current_session_dir:
+        session_dir = target_dir if target_dir else self.current_session_dir
+        if not session_dir:
             return
         
-        metadata_file = self.current_session_dir / "metadata.json"
+        metadata_file = session_dir / "metadata.json"
         if metadata_file.exists():
             try:
                 with open(metadata_file, 'r', encoding='utf-8') as f:
