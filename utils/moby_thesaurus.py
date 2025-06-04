@@ -298,6 +298,16 @@ class MobyThesaurusExpander:
                     score += 0.5
         
         return score
+    
+    def health_check(self) -> Dict[str, any]:
+        """Check the health of the thesaurus"""
+        return {
+            'initialized': self.initialized,
+            'total_words': len(self.thesaurus),
+            'total_reverse_entries': len(self.reverse_index),
+            'cache_exists': self.downloader.processed_file.exists(),
+            'raw_file_exists': self.downloader.raw_file.exists()
+        }
 
 
 class CachedMobyThesaurus:
@@ -308,6 +318,17 @@ class CachedMobyThesaurus:
         self.cache = {}
         self.cache_size = cache_size
         self.access_count = defaultdict(int)
+        self.initialized = False
+    
+    def initialize(self, **kwargs):
+        """Initialize the underlying thesaurus"""
+        try:
+            self.thesaurus.initialize(**kwargs)
+            self.initialized = True
+            logger.info("CachedMobyThesaurus initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize CachedMobyThesaurus: {e}")
+            self.initialized = False
         
     def get_synonyms_cached(self, word: str, max_results: int = 10) -> List[str]:
         """Get synonyms with caching"""
@@ -343,6 +364,24 @@ class CachedMobyThesaurus:
             self.get_synonyms_cached(word)
         
         logger.info(f"Cache now contains {len(self.cache)} entries")
+    
+    def get_synonyms(self, word: str, max_results: int = 10) -> List[str]:
+        """Get synonyms (delegate to cached version)"""
+        return self.get_synonyms_cached(word, max_results)
+    
+    def expand_query(self, query: str, max_per_word: int = 5, context_weight: bool = True):
+        """Expand query using underlying thesaurus"""
+        return self.thesaurus.expand_query(query, max_per_word, context_weight)
+    
+    def health_check(self):
+        """Health check for cached thesaurus"""
+        base_health = self.thesaurus.health_check()
+        base_health['cache_info'] = {
+            'cache_size': len(self.cache),
+            'max_cache_size': self.cache_size,
+            'cache_hits': sum(self.access_count.values())
+        }
+        return base_health
 
 
 class RobustMobyThesaurus(MobyThesaurusExpander):

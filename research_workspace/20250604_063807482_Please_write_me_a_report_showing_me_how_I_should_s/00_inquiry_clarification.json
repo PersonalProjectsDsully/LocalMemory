@@ -1,0 +1,55 @@
+{
+  "original_query": "Please write me a report showing me how I should start learning about AI, I do not want to learn about AI Agents.",
+  "query_analysis": {
+    "main_topic": "Beginning learning resources and approaches for AI, excluding AI Agents",
+    "implicit_needs": [
+      "Guidance on foundational AI topics",
+      "Learning path or curriculum",
+      "Recommended resources or materials"
+    ],
+    "ambiguities": [
+      "Level of detail desired",
+      "Specific application or industry interest",
+      "Preferred learning format"
+    ]
+  },
+  "clarifying_questions": [
+    {
+      "question": "Are there particular areas within AI, such as machine learning, neural networks, or data analysis, that you're most interested in?",
+      "purpose": "To identify specific topics to focus the learning resources on",
+      "options": [
+        "Yes, I have specific areas of interest",
+        "No, I want a broad overview"
+      ]
+    },
+    {
+      "question": "What is your preferred learning format—reading articles, watching videos, hands-on projects, or a combination?",
+      "purpose": "To tailor resource recommendations to their preferred learning style",
+      "options": [
+        "Articles and books",
+        "Video tutorials",
+        "Practical projects",
+        "All of the above"
+      ]
+    },
+    {
+      "question": "Are you looking for beginner-level introductory materials or more in-depth, technical resources?",
+      "purpose": "To determine the appropriate depth and complexity of the information",
+      "options": [
+        "Beginner-level overview",
+        "Intermediate or advanced materials"
+      ]
+    },
+    {
+      "question": "Do you have a specific goal or application in mind for learning AI, such as career development, academic research, or personal interest?",
+      "purpose": "To understand how the user plans to apply their knowledge and tailor recommendations accordingly",
+      "options": [
+        "Career development",
+        "Academic research",
+        "Personal interest",
+        "Other"
+      ]
+    }
+  ],
+  "suggested_refinement": "Please specify your areas of interest within AI, preferred learning methods, current knowledge level, and your goals for learning AI for more targeted guidance."
+}

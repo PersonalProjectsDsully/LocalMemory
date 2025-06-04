@@ -1,0 +1,29 @@
+{
+  "timestamp": "2025-06-04T06:46:34.876792",
+  "subtask": {
+    "id": "task_1",
+    "title": "Define Core Areas of AI for Beginner Learning",
+    "objective": "Identify key AI topics suitable for beginners that provide a broad overview without focusing on AI agents.",
+    "scope": "Include topics such as machine learning, neural networks, data analysis, and AI fundamentals.",
+    "dependencies": [],
+    "complexity": "low",
+    "estimated_documents": 3
+  },
+  "verification": {
+    "percentage": 50,
+    "covered_aspects": [
+      "AI evaluation techniques",
+      "model optimization",
+      "deployment considerations",
+      "practical AI applications"
+    ],
+    "missing_aspects": [
+      "foundational AI concepts",
+      "machine learning basics",
+      "neural networks",
+      "AI fundamentals",
+      "general overview suitable for beginners"
+    ],
+    "verified": false
+  }
+}

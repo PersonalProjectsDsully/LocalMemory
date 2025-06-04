@@ -1,0 +1,35 @@
+{
+  "all_complete": false,
+  "overall_completeness": 70,
+  "task_statuses": {
+    "task_1": {
+      "complete": true,
+      "percentage": 100,
+      "missing": []
+    },
+    "task_2": {
+      "complete": true,
+      "percentage": 100,
+      "missing": []
+    },
+    "task_3": {
+      "complete": true,
+      "percentage": 100,
+      "missing": []
+    },
+    "task_4": {
+      "complete": false,
+      "percentage": 50,
+      "missing": [
+        "Detailed learning path, schedule, milestones, and resource integration are not yet developed."
+      ]
+    },
+    "task_5": {
+      "complete": true,
+      "percentage": 100,
+      "missing": []
+    }
+  },
+  "ready_for_report": false,
+  "final_recommendation": "continue_research"
+}

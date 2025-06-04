@@ -4,13 +4,50 @@
       "find",
       "look",
       "seek",
-      "query"
+      "query",
+      "explore",
+      "hunt"
+    ],
+    "find": [
+      "locate",
+      "discover",
+      "uncover",
+      "detect",
+      "spot"
+    ],
+    "analyze": [
+      "examine",
+      "study",
+      "evaluate",
+      "assess",
+      "review"
     ],
     "create": [
       "make",
       "build",
       "generate",
-      "produce"
+      "produce",
+      "develop"
+    ],
+    "delete": [
+      "remove",
+      "erase",
+      "clear",
+      "eliminate",
+      "destroy"
+    ],
+    "update": [
+      "modify",
+      "change",
+      "revise",
+      "edit",
+      "alter"
+    ],
+    "code": [
+      "program",
+      "script",
+      "software",
+      "application"
     ],
     "debug": [
       "troubleshoot",
@@ -18,11 +55,282 @@
       "repair",
       "solve"
     ],
-    "code": [
-      "program",
-      "script",
-      "software",
-      "application"
+    "error": [
+      "bug",
+      "problem",
+      "issue",
+      "fault",
+      "mistake"
+    ],
+    "function": [
+      "method",
+      "procedure",
+      "routine",
+      "operation"
+    ],
+    "variable": [
+      "parameter",
+      "value",
+      "data",
+      "field"
+    ],
+    "class": [
+      "object",
+      "type",
+      "structure",
+      "entity"
+    ],
+    "algorithm": [
+      "procedure",
+      "method",
+      "process",
+      "technique"
+    ],
+    "data": [
+      "information",
+      "content",
+      "details",
+      "facts"
+    ],
+    "structure": [
+      "format",
+      "organization",
+      "arrangement",
+      "layout"
+    ],
+    "system": [
+      "framework",
+      "platform",
+      "environment",
+      "setup"
+    ],
+    "process": [
+      "procedure",
+      "operation",
+      "workflow",
+      "method"
+    ],
+    "file": [
+      "document",
+      "record",
+      "item",
+      "entry"
+    ],
+    "document": [
+      "paper",
+      "report",
+      "text",
+      "file"
+    ],
+    "text": [
+      "content",
+      "writing",
+      "material",
+      "information"
+    ],
+    "image": [
+      "picture",
+      "photo",
+      "graphic",
+      "visual"
+    ],
+    "video": [
+      "movie",
+      "clip",
+      "recording",
+      "footage"
+    ],
+    "audio": [
+      "sound",
+      "recording",
+      "music",
+      "voice"
+    ],
+    "user": [
+      "person",
+      "individual",
+      "operator",
+      "client"
+    ],
+    "admin": [
+      "administrator",
+      "manager",
+      "supervisor",
+      "controller"
+    ],
+    "setting": [
+      "configuration",
+      "option",
+      "preference",
+      "parameter"
+    ],
+    "configuration": [
+      "setup",
+      "arrangement",
+      "settings",
+      "options"
+    ],
+    "option": [
+      "choice",
+      "alternative",
+      "selection",
+      "preference"
+    ],
+    "show": [
+      "display",
+      "present",
+      "reveal",
+      "exhibit"
+    ],
+    "hide": [
+      "conceal",
+      "mask",
+      "cover",
+      "obscure"
+    ],
+    "open": [
+      "access",
+      "launch",
+      "start",
+      "begin"
+    ],
+    "close": [
+      "shut",
+      "end",
+      "finish",
+      "terminate"
+    ],
+    "save": [
+      "store",
+      "preserve",
+      "keep",
+      "maintain"
+    ],
+    "load": [
+      "open",
+      "retrieve",
+      "fetch",
+      "import"
+    ],
+    "export": [
+      "save",
+      "output",
+      "extract",
+      "transfer"
+    ],
+    "import": [
+      "load",
+      "input",
+      "bring",
+      "include"
+    ],
+    "improve": [
+      "enhance",
+      "better",
+      "upgrade",
+      "optimize"
+    ],
+    "optimize": [
+      "improve",
+      "enhance",
+      "tune",
+      "refine"
+    ],
+    "performance": [
+      "speed",
+      "efficiency",
+      "capability",
+      "effectiveness"
+    ],
+    "quality": [
+      "standard",
+      "grade",
+      "level",
+      "excellence"
+    ],
+    "fast": [
+      "quick",
+      "rapid",
+      "speedy",
+      "swift"
+    ],
+    "slow": [
+      "sluggish",
+      "delayed",
+      "gradual",
+      "leisurely"
+    ],
+    "efficient": [
+      "effective",
+      "productive",
+      "optimal",
+      "streamlined"
+    ],
+    "accurate": [
+      "precise",
+      "exact",
+      "correct",
+      "true"
+    ],
+    "big": [
+      "large",
+      "huge",
+      "massive",
+      "enormous"
+    ],
+    "small": [
+      "tiny",
+      "little",
+      "mini",
+      "compact"
+    ],
+    "new": [
+      "recent",
+      "fresh",
+      "modern",
+      "latest"
+    ],
+    "old": [
+      "ancient",
+      "vintage",
+      "outdated",
+      "legacy"
+    ],
+    "good": [
+      "excellent",
+      "great",
+      "fine",
+      "superior"
+    ],
+    "bad": [
+      "poor",
+      "terrible",
+      "awful",
+      "inferior"
+    ],
+    "easy": [
+      "simple",
+      "straightforward",
+      "effortless",
+      "basic"
+    ],
+    "hard": [
+      "difficult",
+      "challenging",
+      "complex",
+      "tough"
+    ],
+    "complete": [
+      "finished",
+      "done",
+      "full",
+      "total"
+    ],
+    "incomplete": [
+      "partial",
+      "unfinished",
+      "lacking",
+      "missing"
     ]
   },
   "reverse_index": {
@@ -38,6 +346,42 @@
     "query": [
       "search"
     ],
+    "explore": [
+      "search"
+    ],
+    "hunt": [
+      "search"
+    ],
+    "locate": [
+      "find"
+    ],
+    "discover": [
+      "find"
+    ],
+    "uncover": [
+      "find"
+    ],
+    "detect": [
+      "find"
+    ],
+    "spot": [
+      "find"
+    ],
+    "examine": [
+      "analyze"
+    ],
+    "study": [
+      "analyze"
+    ],
+    "evaluate": [
+      "analyze"
+    ],
+    "assess": [
+      "analyze"
+    ],
+    "review": [
+      "analyze"
+    ],
     "make": [
       "create"
     ],
@@ -49,6 +393,51 @@
     ],
     "produce": [
       "create"
+    ],
+    "develop": [
+      "create"
+    ],
+    "remove": [
+      "delete"
+    ],
+    "erase": [
+      "delete"
+    ],
+    "clear": [
+      "delete"
+    ],
+    "eliminate": [
+      "delete"
+    ],
+    "destroy": [
+      "delete"
+    ],
+    "modify": [
+      "update"
+    ],
+    "change": [
+      "update"
+    ],
+    "revise": [
+      "update"
+    ],
+    "edit": [
+      "update"
+    ],
+    "alter": [
+      "update"
+    ],
+    "program": [
+      "code"
+    ],
+    "script": [
+      "code"
+    ],
+    "software": [
+      "code"
+    ],
+    "application": [
+      "code"
     ],
     "troubleshoot": [
       "debug"
@@ -62,19 +451,537 @@
     "solve": [
       "debug"
     ],
-    "program": [
-      "code"
+    "bug": [
+      "error"
     ],
-    "script": [
-      "code"
+    "problem": [
+      "error"
     ],
-    "software": [
-      "code"
+    "issue": [
+      "error"
     ],
-    "application": [
-      "code"
+    "fault": [
+      "error"
+    ],
+    "mistake": [
+      "error"
+    ],
+    "method": [
+      "function",
+      "algorithm",
+      "process"
+    ],
+    "procedure": [
+      "function",
+      "algorithm",
+      "process"
+    ],
+    "routine": [
+      "function"
+    ],
+    "operation": [
+      "function",
+      "process"
+    ],
+    "parameter": [
+      "variable",
+      "setting"
+    ],
+    "value": [
+      "variable"
+    ],
+    "data": [
+      "variable"
+    ],
+    "field": [
+      "variable"
+    ],
+    "object": [
+      "class"
+    ],
+    "type": [
+      "class"
+    ],
+    "structure": [
+      "class"
+    ],
+    "entity": [
+      "class"
+    ],
+    "process": [
+      "algorithm"
+    ],
+    "technique": [
+      "algorithm"
+    ],
+    "information": [
+      "data",
+      "text"
+    ],
+    "content": [
+      "data",
+      "text"
+    ],
+    "details": [
+      "data"
+    ],
+    "facts": [
+      "data"
+    ],
+    "format": [
+      "structure"
+    ],
+    "organization": [
+      "structure"
+    ],
+    "arrangement": [
+      "structure",
+      "configuration"
+    ],
+    "layout": [
+      "structure"
+    ],
+    "framework": [
+      "system"
+    ],
+    "platform": [
+      "system"
+    ],
+    "environment": [
+      "system"
+    ],
+    "setup": [
+      "system",
+      "configuration"
+    ],
+    "workflow": [
+      "process"
+    ],
+    "document": [
+      "file"
+    ],
+    "record": [
+      "file"
+    ],
+    "item": [
+      "file"
+    ],
+    "entry": [
+      "file"
+    ],
+    "paper": [
+      "document"
+    ],
+    "report": [
+      "document"
+    ],
+    "text": [
+      "document"
+    ],
+    "file": [
+      "document"
+    ],
+    "writing": [
+      "text"
+    ],
+    "material": [
+      "text"
+    ],
+    "picture": [
+      "image"
+    ],
+    "photo": [
+      "image"
+    ],
+    "graphic": [
+      "image"
+    ],
+    "visual": [
+      "image"
+    ],
+    "movie": [
+      "video"
+    ],
+    "clip": [
+      "video"
+    ],
+    "recording": [
+      "video",
+      "audio"
+    ],
+    "footage": [
+      "video"
+    ],
+    "sound": [
+      "audio"
+    ],
+    "music": [
+      "audio"
+    ],
+    "voice": [
+      "audio"
+    ],
+    "person": [
+      "user"
+    ],
+    "individual": [
+      "user"
+    ],
+    "operator": [
+      "user"
+    ],
+    "client": [
+      "user"
+    ],
+    "administrator": [
+      "admin"
+    ],
+    "manager": [
+      "admin"
+    ],
+    "supervisor": [
+      "admin"
+    ],
+    "controller": [
+      "admin"
+    ],
+    "configuration": [
+      "setting"
+    ],
+    "option": [
+      "setting"
+    ],
+    "preference": [
+      "setting",
+      "option"
+    ],
+    "settings": [
+      "configuration"
+    ],
+    "options": [
+      "configuration"
+    ],
+    "choice": [
+      "option"
+    ],
+    "alternative": [
+      "option"
+    ],
+    "selection": [
+      "option"
+    ],
+    "display": [
+      "show"
+    ],
+    "present": [
+      "show"
+    ],
+    "reveal": [
+      "show"
+    ],
+    "exhibit": [
+      "show"
+    ],
+    "conceal": [
+      "hide"
+    ],
+    "mask": [
+      "hide"
+    ],
+    "cover": [
+      "hide"
+    ],
+    "obscure": [
+      "hide"
+    ],
+    "access": [
+      "open"
+    ],
+    "launch": [
+      "open"
+    ],
+    "start": [
+      "open"
+    ],
+    "begin": [
+      "open"
+    ],
+    "shut": [
+      "close"
+    ],
+    "end": [
+      "close"
+    ],
+    "finish": [
+      "close"
+    ],
+    "terminate": [
+      "close"
+    ],
+    "store": [
+      "save"
+    ],
+    "preserve": [
+      "save"
+    ],
+    "keep": [
+      "save"
+    ],
+    "maintain": [
+      "save"
+    ],
+    "open": [
+      "load"
+    ],
+    "retrieve": [
+      "load"
+    ],
+    "fetch": [
+      "load"
+    ],
+    "import": [
+      "load"
+    ],
+    "save": [
+      "export"
+    ],
+    "output": [
+      "export"
+    ],
+    "extract": [
+      "export"
+    ],
+    "transfer": [
+      "export"
+    ],
+    "load": [
+      "import"
+    ],
+    "input": [
+      "import"
+    ],
+    "bring": [
+      "import"
+    ],
+    "include": [
+      "import"
+    ],
+    "enhance": [
+      "improve",
+      "optimize"
+    ],
+    "better": [
+      "improve"
+    ],
+    "upgrade": [
+      "improve"
+    ],
+    "optimize": [
+      "improve"
+    ],
+    "improve": [
+      "optimize"
+    ],
+    "tune": [
+      "optimize"
+    ],
+    "refine": [
+      "optimize"
+    ],
+    "speed": [
+      "performance"
+    ],
+    "efficiency": [
+      "performance"
+    ],
+    "capability": [
+      "performance"
+    ],
+    "effectiveness": [
+      "performance"
+    ],
+    "standard": [
+      "quality"
+    ],
+    "grade": [
+      "quality"
+    ],
+    "level": [
+      "quality"
+    ],
+    "excellence": [
+      "quality"
+    ],
+    "quick": [
+      "fast"
+    ],
+    "rapid": [
+      "fast"
+    ],
+    "speedy": [
+      "fast"
+    ],
+    "swift": [
+      "fast"
+    ],
+    "sluggish": [
+      "slow"
+    ],
+    "delayed": [
+      "slow"
+    ],
+    "gradual": [
+      "slow"
+    ],
+    "leisurely": [
+      "slow"
+    ],
+    "effective": [
+      "efficient"
+    ],
+    "productive": [
+      "efficient"
+    ],
+    "optimal": [
+      "efficient"
+    ],
+    "streamlined": [
+      "efficient"
+    ],
+    "precise": [
+      "accurate"
+    ],
+    "exact": [
+      "accurate"
+    ],
+    "correct": [
+      "accurate"
+    ],
+    "true": [
+      "accurate"
+    ],
+    "large": [
+      "big"
+    ],
+    "huge": [
+      "big"
+    ],
+    "massive": [
+      "big"
+    ],
+    "enormous": [
+      "big"
+    ],
+    "tiny": [
+      "small"
+    ],
+    "little": [
+      "small"
+    ],
+    "mini": [
+      "small"
+    ],
+    "compact": [
+      "small"
+    ],
+    "recent": [
+      "new"
+    ],
+    "fresh": [
+      "new"
+    ],
+    "modern": [
+      "new"
+    ],
+    "latest": [
+      "new"
+    ],
+    "ancient": [
+      "old"
+    ],
+    "vintage": [
+      "old"
+    ],
+    "outdated": [
+      "old"
+    ],
+    "legacy": [
+      "old"
+    ],
+    "excellent": [
+      "good"
+    ],
+    "great": [
+      "good"
+    ],
+    "fine": [
+      "good"
+    ],
+    "superior": [
+      "good"
+    ],
+    "poor": [
+      "bad"
+    ],
+    "terrible": [
+      "bad"
+    ],
+    "awful": [
+      "bad"
+    ],
+    "inferior": [
+      "bad"
+    ],
+    "simple": [
+      "easy"
+    ],
+    "straightforward": [
+      "easy"
+    ],
+    "effortless": [
+      "easy"
+    ],
+    "basic": [
+      "easy"
+    ],
+    "difficult": [
+      "hard"
+    ],
+    "challenging": [
+      "hard"
+    ],
+    "complex": [
+      "hard"
+    ],
+    "tough": [
+      "hard"
+    ],
+    "finished": [
+      "complete"
+    ],
+    "done": [
+      "complete"
+    ],
+    "full": [
+      "complete"
+    ],
+    "total": [
+      "complete"
+    ],
+    "partial": [
+      "incomplete"
+    ],
+    "unfinished": [
+      "incomplete"
+    ],
+    "lacking": [
+      "incomplete"
+    ],
+    "missing": [
+      "incomplete"
     ]
   },
   "version": "fallback-1.0",
-  "description": "Emergency fallback thesaurus"
+  "created_at": "2025-01-04",
+  "description": "Emergency fallback thesaurus with common programming and search terms"
 }

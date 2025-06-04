@@ -37,7 +37,10 @@ class EnhancedIntelligentSearchEngine:
         
         # Initialize thesaurus
         try:
-            self.thesaurus.initialize()
+            if hasattr(self.thesaurus, 'initialize'):
+                self.thesaurus.initialize()
+            elif hasattr(self.thesaurus, 'thesaurus') and hasattr(self.thesaurus.thesaurus, 'initialize'):
+                self.thesaurus.thesaurus.initialize()
             logger.info("Thesaurus initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize thesaurus: {e}")
@@ -254,6 +257,96 @@ class EnhancedIntelligentSearchEngine:
             }
         
         return health
+    
+    def configure_qa_system(self, qa_config: str):
+        """Configure QA system - delegate to base engine if available"""
+        if hasattr(self.base_engine, 'configure_qa_system'):
+            return self.base_engine.configure_qa_system(qa_config)
+        else:
+            # Store config for future use
+            self.qa_config = qa_config
+            logger.info(f"QA config set to: {qa_config} (base engine doesn't support QA)")
+    
+    def search_content(self, query: str):
+        """Basic search method - delegate to base engine"""
+        if hasattr(self.base_engine, 'search_content'):
+            return self.base_engine.search_content(query)
+        elif hasattr(self.base_engine, 'search'):
+            return self.base_engine.search(query)
+        else:
+            logger.warning("Base engine has no search method available")
+            return []
+    
+    def parse_query_intent(self, query: str):
+        """Parse query intent - delegate to base engine"""
+        if hasattr(self.base_engine, 'parse_query_intent'):
+            return self.base_engine.parse_query_intent(query)
+        else:
+            # Return basic intent structure
+            return {
+                'intent_type': 'information_seeking',
+                'key_entities': query.split(),
+                'expected_answer_type': 'synthesized_answer',
+                'expanded_query': {'expanded_tokens': []}
+            }
+    
+    def synthesize_answer_with_qa(self, query, results, **kwargs):
+        """Synthesize answer - delegate to base engine"""
+        if hasattr(self.base_engine, 'synthesize_answer_with_qa'):
+            return self.base_engine.synthesize_answer_with_qa(query, results, **kwargs)
+        else:
+            # Return basic answer structure
+            return {
+                'answer': f"Found {len(results)} results for: {query}",
+                'confidence': 0.5,
+                'clusters_found': 1
+            }
+    
+    def explain_expansions(self, query: str) -> Dict[str, any]:
+        """
+        Explain how a query would be expanded with synonyms
+        
+        Args:
+            query: Query to explain
+        
+        Returns:
+            Dictionary with expansion details
+        """
+        try:
+            # Get expansions from thesaurus
+            if hasattr(self.thesaurus, 'expand_query'):
+                expansions = self.thesaurus.expand_query(query, max_per_word=5)
+            else:
+                expansions = self._get_query_expansions(query, max_per_word=5)
+            
+            explanation = {
+                'original_query': query,
+                'words_analyzed': query.lower().split(),
+                'expansions': expansions,
+                'expanded_queries': []
+            }
+            
+            # Generate sample expanded queries
+            for word, synonyms in expansions.items():
+                for synonym in synonyms[:3]:  # Limit to top 3 for readability
+                    expanded_query = query.replace(word, synonym)
+                    if expanded_query != query:
+                        explanation['expanded_queries'].append({
+                            'query': expanded_query,
+                            'substitution': f"{word} → {synonym}"
+                        })
+            
+            return explanation
+        
+        except Exception as e:
+            logger.error(f"Error explaining expansions: {e}")
+            return {
+                'original_query': query,
+                'words_analyzed': query.lower().split(),
+                'expansions': {},
+                'expanded_queries': [],
+                'error': str(e)
+            }
 
 
 # Convenience function for quick setup
