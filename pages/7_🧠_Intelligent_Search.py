@@ -416,13 +416,18 @@ st.markdown("Advanced AI-powered search with comprehensive research workflow")
 
 # Initialize components
 try:
-    from utils.intelligent_search_refined import get_refined_search_engine
-    search_engine = get_refined_search_engine()
-    print("Using refined search engine with improved scoring and intent handling")
+    from utils.enhanced_search_thesaurus import EnhancedIntelligentSearchEngine as ThesaurusSearchEngine
+    search_engine = ThesaurusSearchEngine(use_cache=True, cache_size=10000)
+    print("Using thesaurus-enhanced search engine with synonym expansion")
 except ImportError:
-    from utils.intelligent_search_enhanced import EnhancedIntelligentSearchEngine
-    search_engine = EnhancedIntelligentSearchEngine()
-    print("Using standard enhanced search engine")
+    try:
+        from utils.intelligent_search_refined import get_refined_search_engine
+        search_engine = get_refined_search_engine()
+        print("Using refined search engine with improved scoring and intent handling")
+    except ImportError:
+        from utils.intelligent_search_enhanced import EnhancedIntelligentSearchEngine
+        search_engine = EnhancedIntelligentSearchEngine()
+        print("Using standard enhanced search engine")
 
 workflow_orchestrator = WorkflowOrchestrator()
 
@@ -619,6 +624,49 @@ with st.sidebar:
             
             # Configure the search engine's QA system
             search_engine.configure_qa_system(qa_config)
+        
+        st.divider()
+        
+        # Thesaurus settings
+        st.subheader("🔤 Synonym Expansion")
+        
+        use_thesaurus = st.checkbox(
+            "Enable Thesaurus Expansion",
+            value=st.session_state.get('use_thesaurus', True),
+            help="Automatically expand your search with synonyms from Moby Thesaurus"
+        )
+        st.session_state.use_thesaurus = use_thesaurus
+        
+        if use_thesaurus:
+            col1, col2 = st.columns(2)
+            with col1:
+                expansion_weight = st.slider(
+                    "Expansion Weight",
+                    min_value=0.0,
+                    max_value=1.0,
+                    value=st.session_state.get('expansion_weight', 0.7),
+                    step=0.1,
+                    help="How much to weight synonym-based results (0=ignore, 1=equal weight)"
+                )
+                st.session_state.expansion_weight = expansion_weight
+            
+            with col2:
+                max_synonyms = st.number_input(
+                    "Max Synonyms per Word",
+                    min_value=1,
+                    max_value=10,
+                    value=st.session_state.get('max_synonyms', 3),
+                    help="Maximum number of synonyms to use for each word"
+                )
+                st.session_state.max_synonyms = max_synonyms
+            
+            # Check thesaurus health
+            if hasattr(search_engine, 'health_check'):
+                health = search_engine.health_check()
+                if health.get('thesaurus_health', {}).get('initialized'):
+                    st.success(f"✅ Thesaurus loaded: {health['thesaurus_health'].get('total_words', 0):,} words")
+                else:
+                    st.warning("⚠️ Thesaurus not fully initialized - synonym expansion may be limited")
         
         st.divider()
         
@@ -3715,8 +3763,30 @@ else:
     
     if search_button and query:
         with st.spinner("Searching intelligently..."):
-            # Perform enhanced search
-            results_list = search_engine.search_content(query)
+            # Check thesaurus settings
+            use_thesaurus = st.session_state.get('use_thesaurus', True)
+            expansion_weight = st.session_state.get('expansion_weight', 0.7)
+            max_synonyms = st.session_state.get('max_synonyms', 3)
+            
+            # Perform enhanced search with optional thesaurus expansion
+            if use_thesaurus and hasattr(search_engine, 'search_with_expansion'):
+                # Use thesaurus-enhanced search
+                thesaurus_results = search_engine.search_with_expansion(
+                    query,
+                    use_synonyms=True,
+                    expansion_weight=expansion_weight,
+                    max_synonyms_per_word=max_synonyms
+                )
+                # Convert to expected format
+                results_list = []
+                for result in thesaurus_results:
+                    if hasattr(result, 'to_dict'):
+                        results_list.append(result.to_dict())
+                    else:
+                        results_list.append(result)
+            else:
+                # Use standard search
+                results_list = search_engine.search_content(query)
             
             # Parse query intent for additional info
             query_intent = search_engine.parse_query_intent(query)
@@ -3732,6 +3802,12 @@ else:
                     enable_qa_improvement=enable_qa
                 )
             
+            # Get synonym expansions for display
+            thesaurus_expansions = {}
+            if use_thesaurus and hasattr(search_engine, 'explain_expansions'):
+                expansion_info = search_engine.explain_expansions(query)
+                thesaurus_expansions = expansion_info.get('expansions', {})
+            
             # Format results in expected structure
             results = {
                 'results': results_list,
@@ -3739,7 +3815,9 @@ else:
                     'intent': query_intent.get('intent_type', 'information_seeking'),
                     'entities': query_intent.get('key_entities', []),
                     'search_type': query_intent.get('expected_answer_type', 'synthesized_answer'),
-                    'expanded_terms': query_intent.get('expanded_query', {}).get('expanded_tokens', [])
+                    'expanded_terms': query_intent.get('expanded_query', {}).get('expanded_tokens', []),
+                    'thesaurus_expansions': thesaurus_expansions,
+                    'expansion_used': use_thesaurus
                 },
                 'answer': answer_data.get('answer') if answer_data else None,
                 'answer_confidence': answer_data.get('confidence', 0) if answer_data else 0,
@@ -3790,6 +3868,22 @@ else:
                 with col4:
                     st.markdown("**Search Strategy:**")
                     st.success(analysis.get('search_type', 'Keyword search'))
+                
+                # Add thesaurus expansion display
+                if analysis.get('expansion_used') and analysis.get('thesaurus_expansions'):
+                    st.divider()
+                    st.markdown("**🔤 Synonym Expansions Used:**")
+                    expansions = analysis['thesaurus_expansions']
+                    
+                    if expansions:
+                        cols = st.columns(min(len(expansions), 4))
+                        for i, (word, synonyms) in enumerate(expansions.items()):
+                            with cols[i % len(cols)]:
+                                st.markdown(f"**{word}:**")
+                                for syn in synonyms[:3]:  # Show top 3 synonyms
+                                    st.write(f"• {syn}")
+                    else:
+                        st.info("No synonyms found for query terms")
         
         # Results summary with enhanced info
         total_results = len(results['results'])

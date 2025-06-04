@@ -1,0 +1,80 @@
+{
+  "thesaurus": {
+    "search": [
+      "find",
+      "look",
+      "seek",
+      "query"
+    ],
+    "create": [
+      "make",
+      "build",
+      "generate",
+      "produce"
+    ],
+    "debug": [
+      "troubleshoot",
+      "fix",
+      "repair",
+      "solve"
+    ],
+    "code": [
+      "program",
+      "script",
+      "software",
+      "application"
+    ]
+  },
+  "reverse_index": {
+    "find": [
+      "search"
+    ],
+    "look": [
+      "search"
+    ],
+    "seek": [
+      "search"
+    ],
+    "query": [
+      "search"
+    ],
+    "make": [
+      "create"
+    ],
+    "build": [
+      "create"
+    ],
+    "generate": [
+      "create"
+    ],
+    "produce": [
+      "create"
+    ],
+    "troubleshoot": [
+      "debug"
+    ],
+    "fix": [
+      "debug"
+    ],
+    "repair": [
+      "debug"
+    ],
+    "solve": [
+      "debug"
+    ],
+    "program": [
+      "code"
+    ],
+    "script": [
+      "code"
+    ],
+    "software": [
+      "code"
+    ],
+    "application": [
+      "code"
+    ]
+  },
+  "version": "fallback-1.0",
+  "description": "Emergency fallback thesaurus"
+}
