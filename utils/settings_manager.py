@@ -23,7 +23,10 @@ class SettingsManager:
             'youtube_language': 'en',
             'export_format': 'Markdown',
             
-            # Privacy
+            # Privacy & Analytics
+            # NOTE: This feature is currently a placeholder for future analytics implementation
+            # When implemented, it would track usage patterns to improve the application
+            # All data would be stored locally and never shared with third parties
             'enable_analytics': True,
             
             # LLM settings

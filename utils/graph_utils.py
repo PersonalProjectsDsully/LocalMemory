@@ -1,5 +1,23 @@
 """
-Utility functions for knowledge graph creation and analysis
+UNUSED MODULE - CANDIDATE FOR REMOVAL
+
+Utility functions for knowledge graph creation and analysis.
+
+STATUS: This module appears to be unused in the current codebase.
+- No imports found in any pages or other utility modules
+- The Knowledge Graph page (8_🕸️_Knowledge_Graph.py) does not import this module
+- Functions appear to be well-implemented but orphaned
+
+RECOMMENDATION: Consider removing this module unless:
+1. It's intended for future Knowledge Graph enhancements
+2. It's used by external scripts not in the main codebase
+3. It provides functionality that should be integrated into the current Knowledge Graph page
+
+If keeping, consider integrating these functions into the Knowledge Graph page:
+- calculate_centrality_metrics() could enhance node importance visualization
+- find_communities() could provide clustering features
+- suggest_connections() could power recommendation features
+- detect_influential_documents() could highlight key content
 """
 import networkx as nx
 import numpy as np

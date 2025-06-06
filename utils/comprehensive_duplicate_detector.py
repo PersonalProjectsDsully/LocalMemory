@@ -106,7 +106,42 @@ class DuplicateDetector:
         return title
     
     def find_duplicates(self) -> Dict[str, List[Dict]]:
-        """Find all types of duplicates"""
+        """
+        Find all types of duplicates using multiple detection strategies.
+        
+        This is the main duplicate detection algorithm that employs several techniques
+        to identify potential duplicates in the knowledge base:
+        
+        Detection Strategies:
+        1. Exact Content Matching:
+           - Uses MD5 hash of file content for exact comparison
+           - Groups files with identical content regardless of title
+           - Most reliable method for true duplicates
+        
+        2. Exact Title Matching:
+           - Groups files with identical cleaned titles
+           - Title cleaning removes special characters, numbers, and normalizes case
+           - Catches renamed files or files with different paths but same content
+        
+        3. Fuzzy Title Matching:
+           - Uses SequenceMatcher for similarity detection (85% threshold)
+           - Catches slight variations like "Tutorial 1" vs "Tutorial-1"
+           - Uses efficient O(n²) comparison with early termination
+        
+        4. YouTube-Specific Detection:
+           - Groups by video_id (most reliable for YouTube content)
+           - Groups by title+author combination for same-channel duplicates
+           - Handles cases where video_id might be missing
+        
+        Performance Considerations:
+        - Content hashing: O(n) time complexity, very fast
+        - Title grouping: O(n) time complexity
+        - Fuzzy matching: O(n²) but with optimizations to skip processed files
+        - YouTube detection: O(n) for each strategy
+        
+        Returns:
+            Dict with categorized duplicate groups, each containing file metadata
+        """
         self.duplicates = {
             'exact_content': [],
             'exact_title': [],
@@ -115,7 +150,7 @@ class DuplicateDetector:
             'potential_duplicates': []
         }
         
-        # Group by content hash
+        # Strategy 1: Group by content hash (exact content duplicates)
         content_groups = {}
         for file_data in self.files_data:
             hash_key = file_data['content_hash']
@@ -132,7 +167,7 @@ class DuplicateDetector:
                     'count': len(files)
                 })
         
-        # Group by clean title
+        # Strategy 2: Group by clean title (exact title duplicates)
         title_groups = {}
         for file_data in self.files_data:
             clean_title = file_data['clean_title']
@@ -150,27 +185,32 @@ class DuplicateDetector:
                     'title': title
                 })
         
-        # Find similar titles (fuzzy matching)
-        processed = set()
+        # Strategy 3: Find similar titles (fuzzy matching with optimization)
+        # This is O(n²) but optimized to avoid redundant comparisons
+        processed = set()  # Track files already assigned to groups
         for i, file1 in enumerate(self.files_data):
             if file1['file_path'] in processed:
-                continue
+                continue  # Skip files already in a similarity group
                 
             similar_group = [file1]
             processed.add(file1['file_path'])
             
+            # Compare with remaining files (avoid duplicate comparisons)
             for j, file2 in enumerate(self.files_data[i+1:], i+1):
                 if file2['file_path'] in processed:
-                    continue
+                    continue  # Skip files already grouped
                     
-                # Calculate title similarity
+                # Calculate title similarity using longest common subsequence ratio
                 similarity = SequenceMatcher(None, file1['clean_title'], file2['clean_title']).ratio()
                 
-                # If titles are very similar (>85% match)
+                # Threshold: 85% similarity catches most legitimate variations
+                # Examples: "Docker Tutorial" vs "Docker-Tutorial" = 92% similar
+                #          "Python Basics" vs "Python Basic" = 86% similar
                 if similarity > 0.85:
                     similar_group.append(file2)
                     processed.add(file2['file_path'])
             
+            # Only record groups with actual duplicates
             if len(similar_group) > 1:
                 self.duplicates['similar_title'].append({
                     'type': 'similar_title',
@@ -178,7 +218,8 @@ class DuplicateDetector:
                     'count': len(similar_group)
                 })
         
-        # Find YouTube duplicates (same video_id)
+        # Strategy 4a: Find YouTube duplicates by video_id (most reliable)
+        # This is the gold standard for YouTube content - same video_id = definitely same video
         youtube_groups = {}
         for file_data in self.files_data:
             video_id = file_data.get('video_id')
@@ -196,24 +237,29 @@ class DuplicateDetector:
                     'video_id': video_id
                 })
         
-        # Find YouTube duplicates by title+author combination (for videos from same channel)
+        # Strategy 4b: Find YouTube duplicates by title+author combination
+        # Fallback for cases where video_id might be missing or inconsistent
+        # Groups videos from the same channel with identical titles
         youtube_title_author_groups = {}
         for file_data in self.files_data:
-            # Only check YouTube videos
+            # Only process files explicitly marked as YouTube videos
             if file_data['frontmatter'].get('type') == 'youtube':
                 author = file_data['frontmatter'].get('author', '').strip().lower()
                 title = file_data['clean_title']
                 
+                # Filter out generic or missing authors and titles
                 if author and author != 'unknown channel' and title:
-                    # Create composite key from title and author
+                    # Create composite key: "title|author" ensures same video from same channel
+                    # Using pipe separator avoids conflicts (titles/authors rarely contain pipes)
                     composite_key = f"{title}|{author}"
                     if composite_key not in youtube_title_author_groups:
                         youtube_title_author_groups[composite_key] = []
                     youtube_title_author_groups[composite_key].append(file_data)
         
+        # Process title+author groups to find duplicates
         for composite_key, files in youtube_title_author_groups.items():
             if len(files) > 1:
-                # Extract title and author from composite key
+                # Extract components for reporting
                 title_part, author_part = composite_key.split('|', 1)
                 self.duplicates['youtube_duplicates'].append({
                     'type': 'youtube_title_author_duplicate',

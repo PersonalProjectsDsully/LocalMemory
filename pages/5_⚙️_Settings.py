@@ -385,14 +385,15 @@ st.markdown('<div class="settings-section">', unsafe_allow_html=True)
 st.subheader("Privacy & Analytics")
 
 enable_analytics = st.checkbox(
-    "Enable usage analytics",
+    "Enable usage analytics (Coming Soon)",
     value=st.session_state.get('enable_analytics', True),
-    help="Track usage patterns to improve the application",
+    help="Future feature: Track usage patterns to improve the application. Currently non-functional.",
     key="settings_enable_analytics"
 )
 st.session_state.enable_analytics = enable_analytics
 
-st.info("Analytics data is stored locally and never shared with third parties.")
+st.info("📝 **Note**: Analytics feature is planned but not yet implemented. When available, analytics data will be stored locally and never shared with third parties.")
+st.info("🔮 **Future Analytics Features**: Usage patterns, performance metrics, popular content categories, and feature utilization tracking.")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
