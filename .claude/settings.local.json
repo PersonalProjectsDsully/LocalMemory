@@ -21,7 +21,10 @@
       "Bash(md5sum:*)",
       "WebFetch(domain:www.youtube.com)",
       "Bash(streamlit --version)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(tree:*)",
+      "Bash(/usr/local/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg \"^(def |class )\" /workspace/pages/6_📺_YouTube.py)",
+      "Bash(awk:*)"
     ],
     "deny": []
   },
